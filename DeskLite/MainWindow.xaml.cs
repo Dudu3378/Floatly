@@ -252,6 +252,7 @@ public partial class MainWindow : Window
         MainBorder.BorderBrush = new SolidColorBrush(_palette.PanelBorder);
         ApplySkinVideo();
         ApplySkinOverlay();
+        ApplyContentBackdrop();
         DividerBorder.Background = new SolidColorBrush(_palette.Divider);
 
         ClockText.Foreground = Brush(textPrimary);
@@ -319,6 +320,17 @@ public partial class MainWindow : Window
             (byte)Math.Round(opacity * 255),
             0, 0, 0));
         SkinOverlay.Visibility = Visibility.Visible;
+    }
+
+    private void ApplyContentBackdrop()
+    {
+        var skinMode = SkinService.NormalizeMode(_settings.SkinMode);
+        var useBackdrop = skinMode is SkinService.ModeDefault or SkinService.ModeSolid;
+        ContentBackdrop.Visibility = useBackdrop ? Visibility.Visible : Visibility.Collapsed;
+        if (useBackdrop)
+        {
+            ContentBackdrop.Background = new SolidColorBrush(FloatlyDesignTokens.ContentBackdrop);
+        }
     }
 
     private void ApplySkinVideo()
@@ -737,11 +749,11 @@ public partial class MainWindow : Window
             return;
         }
 
-        const double headerHeight = 88;
-        var scrollBody = 520;
-        const double toolbarHeight = 110;
-        const double todoInput = 40;
-        const double chrome = 36;
+        const double headerHeight = 92;
+        var scrollBody = 480;
+        const double toolbarHeight = 132;
+        const double todoInput = 44;
+        const double chrome = 44;
 
         var height = headerHeight + scrollBody + toolbarHeight + todoInput + chrome;
 
@@ -1220,8 +1232,9 @@ public partial class MainWindow : Window
 
         var city = cache?.City ?? _settings.ResolvedCityName ?? _settings.City;
         var region = cache?.Region ?? _settings.ResolvedRegion;
-        var source = cache?.LocationSource ?? (_settings.AutoLocateCity ? "ip" : "manual");
-        var sourceLabel = _settings.AutoLocateCity ? "自动定位" : source == "ip" ? "IP定位" : "手动";
+        var sourceLabel = !_settings.AutoLocateCity
+            ? LocationService.DescribeSource("manual")
+            : LocationService.DescribeSource(cache?.LocationSource ?? "auto");
 
         CityText.Text = string.IsNullOrWhiteSpace(region)
             ? $"📍 {city}（{sourceLabel}）"
@@ -1295,7 +1308,7 @@ public partial class MainWindow : Window
             _settings.WeatherLatitude,
             _settings.WeatherLongitude,
             _settings.ResolvedRegion,
-            _settings.AutoLocateCity ? "ip" : oldCache?.LocationSource ?? "manual");
+            oldCache?.LocationSource ?? (_settings.AutoLocateCity ? "auto" : "manual"));
         _lastWeatherFetch = DateTime.Now;
 
         if (result is null)
@@ -1348,12 +1361,12 @@ public partial class MainWindow : Window
             return;
         }
 
-        var loc = await _locationService.DetectByIpAsync();
+        var loc = await _locationService.DetectAsync();
         if (loc is null)
         {
             if (notify)
             {
-                _tray?.ShowBalloon("自动定位失败，请检查网络或手动设置城市");
+                _tray?.ShowBalloon("自动定位失败，请检查位置权限、网络或手动设置城市");
             }
 
             await RefreshWeatherAsync();
@@ -1373,7 +1386,7 @@ public partial class MainWindow : Window
         _settings.LastAutoLocateAt = DateTime.Now.ToString("O");
         JsonStore.SaveSettings(_settings);
 
-        var result = await _weatherService.FetchAsync(loc.City, loc.Latitude, loc.Longitude, loc.Region, "ip");
+        var result = await _weatherService.FetchAsync(loc.City, loc.Latitude, loc.Longitude, loc.Region, loc.Source);
         _lastWeatherFetch = DateTime.Now;
 
         if (result is not null)
@@ -1388,7 +1401,8 @@ public partial class MainWindow : Window
 
         if (notify)
         {
-            _tray?.ShowBalloon($"已定位到 {loc.City}");
+            var method = LocationService.DescribeSource(loc.Source);
+            _tray?.ShowBalloon($"已定位到 {loc.City}（{method}）");
         }
     }
 

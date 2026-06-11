@@ -283,19 +283,29 @@ public partial class SettingsWindow : Window
 
     private void UpdateLocationStatus(AppSettings s)
     {
+        var cache = new WeatherService().LoadCache();
+        var source = cache?.LocationSource;
+        var method = s.AutoLocateCity
+            ? LocationService.DescribeSource(string.IsNullOrWhiteSpace(source) ? "auto" : source)
+            : LocationService.DescribeSource("manual");
+
         if (!string.IsNullOrWhiteSpace(s.ResolvedCityName))
         {
             LocationStatusText.Text = string.IsNullOrWhiteSpace(s.ResolvedRegion)
-                ? $"定位状态：已定位 {s.ResolvedCityName}"
-                : $"定位状态：已定位 {s.ResolvedCityName}, {s.ResolvedRegion}";
+                ? $"定位状态：{s.ResolvedCityName}（{method}）"
+                : $"定位状态：{s.ResolvedCityName}, {s.ResolvedRegion}（{method}）";
         }
         else if (!string.IsNullOrWhiteSpace(s.City))
         {
-            LocationStatusText.Text = $"定位状态：{s.City}";
+            LocationStatusText.Text = s.AutoLocateCity
+                ? $"定位状态：{s.City}（{method}）"
+                : $"定位状态：手动城市 {s.City}";
         }
         else
         {
-            LocationStatusText.Text = "定位状态：等待定位";
+            LocationStatusText.Text = s.AutoLocateCity
+                ? "定位状态：等待自动定位"
+                : "定位状态：请输入城市";
         }
     }
 
@@ -988,22 +998,23 @@ public partial class SettingsWindow : Window
     private async void BtnDetectLocation_Click(object sender, RoutedEventArgs e)
     {
         BtnDetectLocation.IsEnabled = false;
-        LocationStatusText.Text = "定位状态：正在定位…";
+        LocationStatusText.Text = "定位状态：正在定位（系统位置 / IP）…";
         try
         {
-            var loc = await _locationService.DetectByIpAsync();
+            var loc = await _locationService.DetectAsync();
             if (loc is null)
             {
-                LocationStatusText.Text = "定位状态：定位失败，请检查网络连接";
+                LocationStatusText.Text = "定位状态：定位失败，请检查位置权限或网络连接";
                 return;
             }
 
             TxtCity.Text = loc.City;
             RbAutoLocate.IsChecked = true;
             UpdateCityControls();
+            var method = LocationService.DescribeSource(loc.Source);
             LocationStatusText.Text = string.IsNullOrWhiteSpace(loc.Region)
-                ? $"定位状态：已定位 {loc.City}"
-                : $"定位状态：已定位 {loc.City}, {loc.Region}";
+                ? $"定位状态：{loc.City}（{method}）"
+                : $"定位状态：{loc.City}, {loc.Region}（{method}）";
         }
         finally
         {

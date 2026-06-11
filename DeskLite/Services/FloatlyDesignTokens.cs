@@ -15,8 +15,10 @@ public static class FloatlyDesignTokens
     public const double BodyFontSize = 12;
 
     public static WpfColor Background => WpfColor.FromRgb(0x13, 0x17, 0x22);
-    public static WpfColor PanelBackground => WpfColor.FromArgb(0xD9, 0x13, 0x17, 0x22);
-    public static WpfColor CardBackground => WpfColor.FromArgb(0xB8, 0x16, 0x19, 0x22);
+    public static WpfColor PanelBackground => WpfColor.FromArgb(0xF0, 0x13, 0x17, 0x22);
+    public static WpfColor CardBackground => WpfColor.FromArgb(0xE8, 0x16, 0x19, 0x22);
+    public static WpfColor ContentBackdrop => WpfColor.FromArgb(0xE6, 0x10, 0x14, 0x1C);
+    public static WpfColor ToolbarBackground => WpfColor.FromArgb(0xD0, 0x1A, 0x1F, 0x28);
     public static WpfColor CardBorder => WpfColor.FromArgb(0x0D, 0xFF, 0xFF, 0xFF);
     public static WpfColor AccentBlue => WpfColor.FromRgb(0x5C, 0x8D, 0xFF);
     public static WpfColor AccentOrange => WpfColor.FromRgb(0xFF, 0x8A, 0x72);
