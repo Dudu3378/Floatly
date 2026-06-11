@@ -21,6 +21,16 @@ public sealed class AppThemePalette
     public required WpfColor TextEmpty { get; init; }
     public required WpfColor TodoText { get; init; }
     public required WpfColor DeleteButton { get; init; }
+    public WpfColor TodoCardBackground { get; init; } = WpfColor.FromArgb(0x18, 0xFF, 0xFF, 0xFF);
+    public WpfColor TodoCardBorder { get; init; } = WpfColor.FromArgb(0x28, 0xFF, 0xFF, 0xFF);
+    public WpfColor TodoCardHover { get; init; } = WpfColor.FromArgb(0x28, 0xFF, 0xFF, 0xFF);
+    public WpfColor TodoTimeBadge { get; init; } = WpfColor.FromArgb(0x22, 0x3B, 0x82, 0xF6);
+    public WpfColor TodoPinActive { get; init; } = WpfColor.FromRgb(0xF5, 0x9E, 0x0B);
+    public WpfColor TodoPinInactive { get; init; } = WpfColor.FromRgb(0x6B, 0x72, 0x80);
+    public WpfColor TodoActionHover { get; init; } = WpfColor.FromArgb(0x30, 0xFF, 0xFF, 0xFF);
+    public WpfColor TodoCountBadge { get; init; } = WpfColor.FromArgb(0x20, 0x3B, 0x82, 0xF6);
+    public WpfColor TodoLink { get; init; } = WpfColor.FromRgb(0x94, 0xA3, 0xB8);
+    public WpfColor TodoAccentButton { get; init; } = WpfColor.FromRgb(0x3B, 0x82, 0xF6);
     public required WpfColor InputBackground { get; init; }
     public required WpfColor InputBorder { get; init; }
     public required WpfColor InputText { get; init; }
@@ -73,6 +83,16 @@ public sealed class AppThemePalette
         TextEmpty = WpfColor.FromRgb(0x6B, 0x72, 0x80),
         TodoText = WpfColor.FromRgb(0xE8, 0xEC, 0xF1),
         DeleteButton = WpfColor.FromRgb(0x7E, 0x87, 0x96),
+        TodoCardBackground = WpfColor.FromArgb(0x18, 0xFF, 0xFF, 0xFF),
+        TodoCardBorder = WpfColor.FromArgb(0x28, 0xFF, 0xFF, 0xFF),
+        TodoCardHover = WpfColor.FromArgb(0x30, 0xFF, 0xFF, 0xFF),
+        TodoTimeBadge = WpfColor.FromArgb(0x28, 0x3B, 0x82, 0xF6),
+        TodoPinActive = WpfColor.FromRgb(0xF5, 0x9E, 0x0B),
+        TodoPinInactive = WpfColor.FromRgb(0x6B, 0x72, 0x80),
+        TodoActionHover = WpfColor.FromArgb(0x30, 0xFF, 0xFF, 0xFF),
+        TodoCountBadge = WpfColor.FromArgb(0x22, 0x3B, 0x82, 0xF6),
+        TodoLink = WpfColor.FromRgb(0x94, 0xA3, 0xB8),
+        TodoAccentButton = WpfColor.FromRgb(0x3B, 0x82, 0xF6),
         InputBackground = WpfColor.FromRgb(0x25, 0x2A, 0x33),
         InputBorder = WpfColor.FromRgb(0x3A, 0x41, 0x50),
         InputText = WpfColor.FromRgb(0xF3, 0xF4, 0xF6),
@@ -115,6 +135,16 @@ public sealed class AppThemePalette
         TextEmpty = WpfColor.FromRgb(0x94, 0xA3, 0xB8),
         TodoText = WpfColor.FromRgb(0x1E, 0x29, 0x3B),
         DeleteButton = WpfColor.FromRgb(0x94, 0xA3, 0xB8),
+        TodoCardBackground = WpfColor.FromArgb(0x0C, 0x15, 0x23, 0x42),
+        TodoCardBorder = WpfColor.FromArgb(0x28, 0x15, 0x23, 0x42),
+        TodoCardHover = WpfColor.FromArgb(0x18, 0x15, 0x23, 0x42),
+        TodoTimeBadge = WpfColor.FromArgb(0x18, 0x25, 0x63, 0xEB),
+        TodoPinActive = WpfColor.FromRgb(0xD9, 0x77, 0x06),
+        TodoPinInactive = WpfColor.FromRgb(0x94, 0xA3, 0xB8),
+        TodoActionHover = WpfColor.FromArgb(0x12, 0x15, 0x23, 0x42),
+        TodoCountBadge = WpfColor.FromArgb(0x14, 0x25, 0x63, 0xEB),
+        TodoLink = WpfColor.FromRgb(0x64, 0x74, 0x8B),
+        TodoAccentButton = WpfColor.FromRgb(0x25, 0x63, 0xEB),
         InputBackground = WpfColor.FromRgb(0xF1, 0xF5, 0xF9),
         InputBorder = WpfColor.FromRgb(0xCB, 0xD5, 0xE1),
         InputText = WpfColor.FromRgb(0x0F, 0x17, 0x2A),

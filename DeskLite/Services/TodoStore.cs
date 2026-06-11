@@ -4,6 +4,7 @@ namespace DeskLite.Services;
 
 public sealed class TodoStore
 {
+    private const int MainPanelLimit = 5;
     private AppDataFile _data;
 
     public TodoStore()
@@ -13,7 +14,9 @@ public sealed class TodoStore
 
     public AppDataFile Data => _data;
 
-    public IReadOnlyList<TodoItem> GetTodayTodos()
+    public int MainPanelMax => MainPanelLimit;
+
+    public IReadOnlyList<TodoItem> GetTodayActiveTodos()
     {
         var today = DateTime.Today.ToString("yyyy-MM-dd");
         return _data.Todos
@@ -21,8 +24,16 @@ public sealed class TodoStore
             .OrderByDescending(t => t.Pinned)
             .ThenBy(t => string.IsNullOrWhiteSpace(t.Time) ? "99:99" : t.Time)
             .ThenBy(t => t.Title)
-            .Take(5)
             .ToList();
+    }
+
+    public IReadOnlyList<TodoItem> GetTodayTodos() =>
+        GetTodayActiveTodos().Take(MainPanelLimit).ToList();
+
+    public int GetTodayHiddenCount()
+    {
+        var total = GetTodayActiveTodos().Count;
+        return Math.Max(0, total - MainPanelLimit);
     }
 
     public IReadOnlyList<TodoItem> GetTodayTimedTodos()
@@ -32,6 +43,35 @@ public sealed class TodoStore
             .Where(t => !t.Done && t.Date == today && !string.IsNullOrWhiteSpace(t.Time))
             .ToList();
     }
+
+    public IReadOnlyList<TodoItem> GetActiveTodos() =>
+        _data.Todos
+            .Where(t => !t.Done)
+            .OrderByDescending(t => t.Pinned)
+            .ThenBy(t => t.Date)
+            .ThenBy(t => string.IsNullOrWhiteSpace(t.Time) ? "99:99" : t.Time)
+            .ThenBy(t => t.Title)
+            .ToList();
+
+    public IReadOnlyList<TodoItem> GetCompletedTodos() =>
+        _data.Todos
+            .Where(t => t.Done)
+            .OrderByDescending(t => t.Date)
+            .ThenByDescending(t => string.IsNullOrWhiteSpace(t.Time) ? "00:00" : t.Time)
+            .ThenBy(t => t.Title)
+            .ToList();
+
+    public IReadOnlyList<TodoItem> GetAllTodos() =>
+        _data.Todos
+            .OrderByDescending(t => t.Pinned)
+            .ThenBy(t => t.Done)
+            .ThenBy(t => t.Date)
+            .ThenBy(t => string.IsNullOrWhiteSpace(t.Time) ? "99:99" : t.Time)
+            .ThenBy(t => t.Title)
+            .ToList();
+
+    public TodoItem? GetById(string id) =>
+        _data.Todos.FirstOrDefault(t => t.Id == id);
 
     public void Add(string title, string? time = null)
     {
@@ -64,6 +104,42 @@ public sealed class TodoStore
         }
 
         item.Done = !item.Done;
+        Save();
+    }
+
+    public void SetPinned(string id, bool pinned)
+    {
+        var item = _data.Todos.FirstOrDefault(t => t.Id == id);
+        if (item is null)
+        {
+            return;
+        }
+
+        item.Pinned = pinned;
+        Save();
+    }
+
+    public void Update(string id, string title, string? time = null)
+    {
+        var item = _data.Todos.FirstOrDefault(t => t.Id == id);
+        if (item is null)
+        {
+            return;
+        }
+
+        title = title.Trim();
+        if (string.IsNullOrWhiteSpace(title))
+        {
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(time) && !TimeSpan.TryParse(time, out _))
+        {
+            time = null;
+        }
+
+        item.Title = title;
+        item.Time = string.IsNullOrWhiteSpace(time) ? null : time;
         Save();
     }
 

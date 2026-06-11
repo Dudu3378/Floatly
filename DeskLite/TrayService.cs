@@ -9,6 +9,7 @@ public sealed class TrayService : IDisposable
     private readonly MainWindow _window;
     private readonly Action _onOpenSettings;
     private readonly Action _onAddTodo;
+    private readonly Action _onViewAllTodos;
     private readonly Action _onAddCountdown;
     private readonly Action _onJumpCalendarDate;
     private readonly Action _onResetCalendarToday;
@@ -19,6 +20,7 @@ public sealed class TrayService : IDisposable
         MainWindow window,
         Action onOpenSettings,
         Action onAddTodo,
+        Action onViewAllTodos,
         Action onAddCountdown,
         Action onJumpCalendarDate,
         Action onResetCalendarToday,
@@ -28,6 +30,7 @@ public sealed class TrayService : IDisposable
         _window = window;
         _onOpenSettings = onOpenSettings;
         _onAddTodo = onAddTodo;
+        _onViewAllTodos = onViewAllTodos;
         _onAddCountdown = onAddCountdown;
         _onJumpCalendarDate = onJumpCalendarDate;
         _onResetCalendarToday = onResetCalendarToday;
@@ -52,6 +55,7 @@ public sealed class TrayService : IDisposable
         menu.Items.Add("设置...", null, (_, _) => _onOpenSettings());
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("添加待办", null, (_, _) => _onAddTodo());
+        menu.Items.Add("查看全部待办", null, (_, _) => _onViewAllTodos());
         menu.Items.Add("添加倒数日...", null, (_, _) => _onAddCountdown());
         menu.Items.Add(BuildCalendarMenu());
         menu.Items.Add("导出数据备份", null, (_, _) => _onExportBackup());

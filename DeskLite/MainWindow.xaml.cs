@@ -28,6 +28,7 @@ public partial class MainWindow : Window
     private GlobalHotkeyService? _hotkeyService;
     private AppThemePalette _palette = AppThemePalette.For(ThemeMode.Dark);
     private bool _suppressSizePersist;
+    private TodoListWindow? _todoListWindow;
 
     public MainWindow()
     {
@@ -72,6 +73,7 @@ public partial class MainWindow : Window
             this,
             OpenSettings,
             PromptAddTodo,
+            OpenTodoListWindow,
             AddCountdown,
             JumpToCalendarDate,
             ResetCalendarToday,
@@ -215,6 +217,11 @@ public partial class MainWindow : Window
         DailyQuoteText.Foreground = Brush(_palette.TextMuted);
         TodoTitleText.Foreground = Brush(_palette.TextMuted);
         EmptyTodoText.Foreground = Brush(_palette.TextEmpty);
+        TodoCountBadge.Background = Brush(_palette.TodoCountBadge);
+        TodoCountText.Foreground = Brush(_palette.Accent);
+        TodoOverflowBtn.Background = Brush(_palette.HuangLiMutedButton);
+        TodoOverflowText.Foreground = Brush(_palette.TodoLink);
+        TodoViewAllText.Foreground = Brush(_palette.TodoLink);
         CalendarTitleText.Foreground = Brush(_palette.TextEmpty);
         CalPrevBtn.Foreground = Brush(_palette.TextMuted);
         CalNextBtn.Foreground = Brush(_palette.TextMuted);
@@ -223,12 +230,15 @@ public partial class MainWindow : Window
         NewTodoBox.Background = Brush(_palette.InputBackground);
         NewTodoBox.BorderBrush = Brush(_palette.InputBorder);
         NewTodoBox.Foreground = Brush(_palette.InputText);
+        AddButton.Background = Brush(_palette.TodoAccentButton);
+        AddButton.Foreground = System.Windows.Media.Brushes.White;
         ScratchBox.Background = Brush(_palette.InputBackground);
         ScratchBox.BorderBrush = Brush(_palette.InputBorder);
         ScratchBox.Foreground = Brush(_palette.TextTertiary);
 
         Resources["TodoTextBrush"] = Brush(_palette.TodoText);
         Resources["TodoDeleteBrush"] = Brush(_palette.DeleteButton);
+        TodoThemeHelper.ApplyResources(Resources, _palette);
 
         RefreshCalendar();
         RefreshTodoTheme();
@@ -985,19 +995,82 @@ public partial class MainWindow : Window
 
     private void RefreshTodos()
     {
-        var items = _todoStore.GetTodayTodos()
-            .Select(t => new TodoDisplayItem(t.Id, FormatTodo(t)))
-            .ToList();
+        var allToday = _todoStore.GetTodayActiveTodos();
+        var shown = allToday.Take(_todoStore.MainPanelMax).Select(TodoDisplayItem.From).ToList();
+        var hidden = _todoStore.GetTodayHiddenCount();
 
-        TodoList.ItemsSource = items;
-        EmptyTodoText.Visibility = items.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        TodoList.ItemsSource = shown;
+        EmptyTodoPanel.Visibility = shown.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        TodoCountText.Text = $"{shown.Count}/{allToday.Count}";
+
+        if (hidden > 0)
+        {
+            TodoOverflowBtn.Visibility = Visibility.Visible;
+            TodoOverflowText.Text = $"还有 {hidden} 条未显示 ›";
+            TodoViewAllBtn.Visibility = Visibility.Collapsed;
+        }
+        else
+        {
+            TodoOverflowBtn.Visibility = Visibility.Collapsed;
+            TodoViewAllBtn.Visibility = allToday.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        }
     }
 
-    private static string FormatTodo(TodoItem item)
+    public void OpenTodoListWindow()
     {
-        var prefix = item.Pinned ? "⭐ " : string.Empty;
-        var body = string.IsNullOrWhiteSpace(item.Time) ? item.Title : $"{item.Time} {item.Title}";
-        return prefix + body;
+        if (_todoListWindow is { IsVisible: true })
+        {
+            _todoListWindow.Activate();
+            return;
+        }
+
+        _todoListWindow = new TodoListWindow(_todoStore, _settings, RefreshTodos)
+        {
+            Owner = this
+        };
+        _todoListWindow.Closed += (_, _) => _todoListWindow = null;
+        _todoListWindow.Show();
+        Show();
+        Activate();
+    }
+
+    private static void ParseTodoInput(string text, out string title, out string? time)
+    {
+        text = text.Trim();
+        time = null;
+        title = text;
+
+        if (text.Length >= 5 && text[2] == ':' && int.TryParse(text[..2], out _))
+        {
+            time = text[..5];
+            title = text[5..].TrimStart();
+        }
+    }
+
+    private void EditTodo(string id)
+    {
+        var item = _todoStore.GetById(id);
+        if (item is null)
+        {
+            return;
+        }
+
+        var defaultText = string.IsNullOrWhiteSpace(item.Time) ? item.Title : $"{item.Time} {item.Title}";
+        var text = InputPrompt.Show("编辑待办", "修改内容（可加时间如 14:00 周会）：", defaultText);
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return;
+        }
+
+        ParseTodoInput(text, out var title, out var time);
+        if (string.IsNullOrWhiteSpace(title))
+        {
+            return;
+        }
+
+        _todoStore.Update(id, title, time);
+        RefreshTodos();
+        _todoListWindow?.RefreshFromOutside();
     }
 
     private void LoadScratch()
@@ -1021,15 +1094,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        string? time = null;
-        var title = text;
-
-        if (text.Length >= 5 && text[2] == ':' && int.TryParse(text[..2], out _))
-        {
-            time = text[..5];
-            title = text[5..].TrimStart();
-        }
-
+        ParseTodoInput(text, out var title, out var time);
         if (string.IsNullOrWhiteSpace(title))
         {
             return;
@@ -1520,6 +1585,36 @@ public partial class MainWindow : Window
         }
     }
 
+    private void TodoPin_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is System.Windows.Controls.Button { Tag: string id })
+        {
+            var item = _todoStore.GetById(id);
+            if (item is not null)
+            {
+                _todoStore.SetPinned(id, !item.Pinned);
+                RefreshTodos();
+            }
+        }
+    }
+
+    private void TodoEdit_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is System.Windows.Controls.Button { Tag: string id })
+        {
+            EditTodo(id);
+        }
+    }
+
+    private void TodoTitle_DoubleClick(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ClickCount >= 2 && sender is TextBlock { Tag: string id })
+        {
+            EditTodo(id);
+            e.Handled = true;
+        }
+    }
+
     private void TodoDelete_Click(object sender, RoutedEventArgs e)
     {
         if (sender is System.Windows.Controls.Button { Tag: string id })
@@ -1527,6 +1622,18 @@ public partial class MainWindow : Window
             _todoStore.Remove(id);
             RefreshTodos();
         }
+    }
+
+    private void TodoViewAll_Click(object sender, RoutedEventArgs e) => OpenTodoListWindow();
+
+    private void NewTodoBox_GotFocus(object sender, RoutedEventArgs e)
+    {
+        NewTodoBox.BorderBrush = Brush(_palette.Accent);
+    }
+
+    private void NewTodoBox_LostFocus(object sender, RoutedEventArgs e)
+    {
+        NewTodoBox.BorderBrush = Brush(_palette.InputBorder);
     }
 
     private void ThemeDark_Click(object sender, RoutedEventArgs e) => SetTheme(ThemeMode.Dark);
@@ -1540,6 +1647,4 @@ public partial class MainWindow : Window
     private void Opacity70_Click(object sender, RoutedEventArgs e) => SetOpacity(0.70);
 
     private void Opacity55_Click(object sender, RoutedEventArgs e) => SetOpacity(0.55);
-
-    private sealed record TodoDisplayItem(string Id, string Display);
 }

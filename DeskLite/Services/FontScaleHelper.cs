@@ -54,7 +54,10 @@ public static class FontScaleHelper
         Set(window.DailyQuoteText, 11, scale);
         Set(window.ScratchBox, 11, scale);
         Set(window.TodoTitleText, 12, scale);
+        Set(window.TodoCountText, 10, scale);
         Set(window.EmptyTodoText, 12, scale);
+        Set(window.TodoOverflowText, 11, scale);
+        Set(window.TodoViewAllText, 11, scale);
         Set(window.CalendarTitleText, 11, scale);
         Set(window.NewTodoBox, 12, scale);
         Set(window.AddButton, 12, scale);

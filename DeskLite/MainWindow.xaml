@@ -14,6 +14,16 @@
     <Window.Resources>
         <SolidColorBrush x:Key="TodoTextBrush" Color="#E8ECF1" />
         <SolidColorBrush x:Key="TodoDeleteBrush" Color="#7E8796" />
+        <SolidColorBrush x:Key="TodoCardBgBrush" Color="#18FFFFFF" />
+        <SolidColorBrush x:Key="TodoCardBorderBrush" Color="#28FFFFFF" />
+        <SolidColorBrush x:Key="TodoTimeBadgeBrush" Color="#223B82F6" />
+        <SolidColorBrush x:Key="TodoPinActiveBrush" Color="#F59E0B" />
+        <SolidColorBrush x:Key="TodoPinInactiveBrush" Color="#6B7280" />
+        <SolidColorBrush x:Key="TodoCountBadgeBrush" Color="#223B82F6" />
+        <SolidColorBrush x:Key="TodoLinkBrush" Color="#94A3B8" />
+        <SolidColorBrush x:Key="TodoMutedBrush" Color="#8B95A5" />
+        <SolidColorBrush x:Key="TodoEmptyBrush" Color="#6B7280" />
+        <SolidColorBrush x:Key="TodoAccentBrush" Color="#3B82F6" />
     </Window.Resources>
     <Border x:Name="MainBorder"
             Background="#E8181C24"
@@ -335,12 +345,26 @@
                     <StackPanel x:Name="TodoPanel">
                         <Border x:Name="DividerBorder" Height="1" Background="#28FFFFFF" Margin="0,0,0,8" />
 
-                        <StackPanel Margin="0,0,0,4">
-                            <TextBlock x:Name="TodoTitleText" Text="今日待办" FontSize="12" Foreground="#8B95A5" Margin="0,0,0,6" />
-                            <ItemsControl x:Name="TodoList">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Grid Margin="0,0,0,6">
+                        <Grid Margin="0,0,0,6">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock x:Name="TodoTitleText" Text="今日待办" FontSize="12"
+                                           Foreground="#8B95A5" VerticalAlignment="Center" />
+                                <Border x:Name="TodoCountBadge" CornerRadius="8" Padding="6,1" Margin="6,0,0,0"
+                                        Background="{DynamicResource TodoCountBadgeBrush}" VerticalAlignment="Center">
+                                    <TextBlock x:Name="TodoCountText" Text="0/0" FontSize="10"
+                                               Foreground="{DynamicResource TodoAccentBrush}" FontWeight="SemiBold" />
+                                </Border>
+                            </StackPanel>
+                        </Grid>
+
+                        <ItemsControl x:Name="TodoList" Margin="0,0,0,4">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="{DynamicResource TodoCardBgBrush}"
+                                            BorderBrush="{DynamicResource TodoCardBorderBrush}"
+                                            BorderThickness="1" CornerRadius="8"
+                                            Padding="8,6" Margin="0,0,0,5">
+                                        <Grid>
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="Auto" />
                                                 <ColumnDefinition Width="*" />
@@ -348,19 +372,79 @@
                                             </Grid.ColumnDefinitions>
                                             <CheckBox Grid.Column="0" Margin="0,0,8,0" VerticalAlignment="Center"
                                                       Tag="{Binding Id}" Click="TodoCheck_Click" />
-                                            <TextBlock Grid.Column="1" Text="{Binding Display}"
-                                                       Foreground="{DynamicResource TodoTextBrush}" FontSize="13"
-                                                       TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
-                                            <Button Grid.Column="2" Content="×" Width="22" Height="22" Padding="0"
-                                                    Margin="4,0,0,0" Tag="{Binding Id}" Click="TodoDelete_Click"
-                                                    Background="Transparent" BorderThickness="0"
-                                                    Foreground="{DynamicResource TodoDeleteBrush}" Cursor="Hand" />
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                                <Border Background="{DynamicResource TodoTimeBadgeBrush}"
+                                                        CornerRadius="4" Padding="4,1" Margin="0,0,6,0" VerticalAlignment="Center">
+                                                    <Border.Style>
+                                                        <Style TargetType="Border">
+                                                            <Setter Property="Visibility" Value="Collapsed" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding HasTime}" Value="True">
+                                                                    <Setter Property="Visibility" Value="Visible" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Border.Style>
+                                                    <TextBlock Text="{Binding Time}" FontSize="10"
+                                                               Foreground="{DynamicResource TodoAccentBrush}"
+                                                               FontWeight="SemiBold" />
+                                                </Border>
+                                                <TextBlock Text="{Binding Title}" Foreground="{DynamicResource TodoTextBrush}"
+                                                           FontSize="13" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
+                                                           Tag="{Binding Id}" MouseLeftButtonDown="TodoTitle_DoubleClick"
+                                                           Cursor="Hand" ToolTip="双击编辑" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                                <Button Content="{Binding PinIcon}" Width="22" Height="22" Padding="0"
+                                                        Tag="{Binding Id}" Click="TodoPin_Click"
+                                                        Background="Transparent" BorderThickness="0" Cursor="Hand"
+                                                        ToolTip="置顶" FontSize="12">
+                                                    <Button.Style>
+                                                        <Style TargetType="Button">
+                                                            <Setter Property="Foreground" Value="{DynamicResource TodoPinInactiveBrush}" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding Pinned}" Value="True">
+                                                                    <Setter Property="Foreground" Value="{DynamicResource TodoPinActiveBrush}" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Button.Style>
+                                                </Button>
+                                                <Button Content="✎" Width="22" Height="22" Padding="0" Margin="0,0,0,0"
+                                                        Tag="{Binding Id}" Click="TodoEdit_Click"
+                                                        Background="Transparent" BorderThickness="0" Cursor="Hand"
+                                                        Foreground="{DynamicResource TodoMutedBrush}" ToolTip="编辑" FontSize="11" />
+                                                <Button Content="×" Width="22" Height="22" Padding="0"
+                                                        Tag="{Binding Id}" Click="TodoDelete_Click"
+                                                        Background="Transparent" BorderThickness="0" Cursor="Hand"
+                                                        Foreground="{DynamicResource TodoDeleteBrush}" ToolTip="删除" FontSize="14" />
+                                            </StackPanel>
                                         </Grid>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                            <TextBlock x:Name="EmptyTodoText" Text="暂无待办" Foreground="#6B7280" FontSize="12" Visibility="Collapsed" />
-                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <Border x:Name="EmptyTodoPanel" Background="{DynamicResource TodoCardBgBrush}"
+                                BorderBrush="{DynamicResource TodoCardBorderBrush}" BorderThickness="1"
+                                CornerRadius="8" Padding="12,10" Margin="0,0,0,6" Visibility="Collapsed">
+                            <TextBlock x:Name="EmptyTodoText" Text="暂无待办，在下方添加一条吧 ✨"
+                                       Foreground="{DynamicResource TodoEmptyBrush}" FontSize="12"
+                                       TextAlignment="Center" TextWrapping="Wrap" />
+                        </Border>
+
+                        <Border x:Name="TodoOverflowBtn" Background="#18FFFFFF" CornerRadius="6" Padding="6,4"
+                                Margin="0,0,0,4" Cursor="Hand" MouseLeftButtonUp="TodoViewAll_Click"
+                                Visibility="Collapsed">
+                            <TextBlock x:Name="TodoOverflowText" Text="还有 0 条未显示 ›" FontSize="11"
+                                       Foreground="{DynamicResource TodoLinkBrush}" HorizontalAlignment="Center" />
+                        </Border>
+
+                        <Border x:Name="TodoViewAllBtn" Background="Transparent" CornerRadius="4" Padding="2,2"
+                                Cursor="Hand" MouseLeftButtonUp="TodoViewAll_Click">
+                            <TextBlock x:Name="TodoViewAllText" Text="查看全部 ›" FontSize="11"
+                                       Foreground="{DynamicResource TodoLinkBrush}" HorizontalAlignment="Center" />
+                        </Border>
                     </StackPanel>
                 </StackPanel>
             </ScrollViewer>
@@ -401,7 +485,7 @@
             <StackPanel Grid.Row="3" Orientation="Horizontal">
                 <TextBox x:Name="NewTodoBox" Width="200" Height="30" Background="#252A33"
                          Foreground="#F3F4F6" BorderBrush="#3A4150" Padding="8,4" FontSize="12"
-                         Cursor="IBeam" KeyDown="NewTodoBox_KeyDown" />
+                         Cursor="IBeam" KeyDown="NewTodoBox_KeyDown" GotFocus="NewTodoBox_GotFocus" LostFocus="NewTodoBox_LostFocus" />
                 <Button x:Name="AddButton" Content="添加" Width="58" Height="30" Margin="8,0,0,0"
                         Click="AddTodo_Click" Background="#3B82F6" Foreground="White"
                         BorderThickness="0" Cursor="Hand" />
