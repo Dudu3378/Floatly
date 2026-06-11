@@ -190,7 +190,7 @@ public partial class MainWindow : Window
     private void ApplyModuleOrder()
     {
         var order = DeskModuleIds.Normalize(_settings.ModuleOrder);
-        var extraModules = new Dictionary<string, UIElement>
+        var extraModules = new Dictionary<string, FrameworkElement>
         {
             [DeskModuleIds.OffWork] = OffWorkPanel,
             [DeskModuleIds.Salary] = SalaryPanel,
@@ -202,16 +202,29 @@ public partial class MainWindow : Window
         {
             if (extraModules.TryGetValue(id, out var element))
             {
-                ExtraModuleStack.Children.Add(element);
+                ReparentToPanel(element, ExtraModuleStack);
             }
         }
 
         foreach (var (id, element) in extraModules)
         {
-            if (!order.Contains(id) && !ExtraModuleStack.Children.Contains(element))
+            if (!order.Contains(id))
             {
-                ExtraModuleStack.Children.Add(element);
+                ReparentToPanel(element, ExtraModuleStack);
             }
+        }
+    }
+
+    private static void ReparentToPanel(FrameworkElement element, System.Windows.Controls.Panel target)
+    {
+        if (element.Parent is System.Windows.Controls.Panel currentParent && currentParent != target)
+        {
+            currentParent.Children.Remove(element);
+        }
+
+        if (!target.Children.Contains(element))
+        {
+            target.Children.Add(element);
         }
     }
 
