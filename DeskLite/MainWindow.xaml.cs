@@ -73,21 +73,14 @@ public partial class MainWindow : Window
             OpenSettings,
             PromptAddTodo,
             ToggleTopmost,
-            ToggleAutoStart,
             SetCity,
             DetectLocationByIp,
-            ToggleWeather,
-            ToggleWeekStrip,
             SetCalendarWeek,
             SetCalendarMonth,
             JumpToCalendarDate,
             ResetCalendarToday,
-            ToggleModule,
             AddCountdown,
             ExportBackup,
-            SetTheme,
-            SetOpacity,
-            ToggleClickThrough,
             ExitApp);
 
         Closing += (_, e) =>
@@ -139,6 +132,8 @@ public partial class MainWindow : Window
 
         var showWeek = _settings.ShowWeekStrip;
         CalendarSection.Visibility = showWeek ? Visibility.Visible : Visibility.Collapsed;
+        HuangLiPanel.Visibility = _settings.ShowHuangLi ? Visibility.Visible : Visibility.Collapsed;
+        UpdateWindowHeight();
     }
 
     private void LoadCalendarState()
@@ -168,6 +163,11 @@ public partial class MainWindow : Window
         DateText.Foreground = Brush(_palette.TextSecondary);
         LunarText.Foreground = Brush(_palette.TextTertiary);
         LunarSubText.Foreground = Brush(_palette.TextSubtle);
+        HuangLiPanel.Background = Brush(_palette.HuangLiBackground);
+        HuangLiMetaText.Foreground = Brush(_palette.TextMuted);
+        HuangLiGodsText.Foreground = Brush(_palette.TextSubtle);
+        HuangLiExtraText.Foreground = Brush(_palette.TextSubtle);
+        HuangLiTimeText.Foreground = Brush(_palette.TextEmpty);
         WeatherText.Foreground = Brush(_palette.TextSecondary);
         CityText.Foreground = Brush(_palette.TextMuted);
         WeatherExtraText.Foreground = Brush(_palette.TextSubtle);
@@ -238,6 +238,7 @@ public partial class MainWindow : Window
             case "tomorrow": _settings.ShowTomorrowWeather = !_settings.ShowTomorrowWeather; break;
             case "scratch": _settings.ShowScratch = !_settings.ShowScratch; break;
             case "cityName": _settings.ShowCityName = !_settings.ShowCityName; break;
+            case "huangLi": _settings.ShowHuangLi = !_settings.ShowHuangLi; break;
             case "autoLocate":
                 _settings.AutoLocateCity = !_settings.AutoLocateCity;
                 if (_settings.AutoLocateCity)
@@ -273,6 +274,11 @@ public partial class MainWindow : Window
             RefreshCityDisplay(_weatherService.LoadCache());
         }
 
+        if (key is "huangLi")
+        {
+            RefreshClock();
+        }
+
         JsonStore.SaveSettings(_settings);
         _tray?.RefreshMenu();
         if (key is "sunrise" or "tomorrow")
@@ -302,8 +308,81 @@ public partial class MainWindow : Window
             : $"周{info.WeekName} {displayDate.Month}月{displayDate.Day}日";
 
         LunarText.Text = info.Line;
-        LunarSubText.Text = info.SubLine;
+        RefreshHuangLi(displayDate);
         RefreshCalendar();
+    }
+
+    private void RefreshHuangLi(DateTime displayDate)
+    {
+        if (!_settings.ShowHuangLi)
+        {
+            HuangLiPanel.Visibility = Visibility.Collapsed;
+            LunarSubText.Text = LunarCalendar.Get(displayDate).SubLine;
+            return;
+        }
+
+        HuangLiPanel.Visibility = Visibility.Visible;
+        var huangLi = HuangLiService.Get(displayDate, includeCurrentTime: _calendarPreviewDate is null);
+        LunarSubText.Text = huangLi.Headline;
+        HuangLiYiText.Text = $"宜  {huangLi.Yi}";
+        HuangLiJiText.Text = $"忌  {huangLi.Ji}";
+        HuangLiMetaText.Text = huangLi.Meta;
+        HuangLiGodsText.Text = $"{huangLi.Gods} · {huangLi.TaiShen}";
+        HuangLiExtraText.Text = string.IsNullOrEmpty(huangLi.CurrentTime)
+            ? $"{huangLi.PengZu} · {huangLi.Deity}"
+            : $"{huangLi.PengZu}\n{huangLi.Deity}\n{huangLi.CurrentTime}";
+        HuangLiTimeText.Text = huangLi.TimeLuck;
+        UpdateWindowHeight();
+    }
+
+    private void UpdateWindowHeight()
+    {
+        var height = 460;
+        if (_settings.ShowHuangLi)
+        {
+            height += 128;
+        }
+
+        if (_settings.ShowWeekStrip)
+        {
+            height += _calendarMode == CalendarViewMode.Month ? 200 : 95;
+        }
+
+        if (_settings.ShowWeather)
+        {
+            height += 36;
+            if (_settings.ShowCityName)
+            {
+                height += 18;
+            }
+
+            if (_settings.ShowSunriseSunset || _settings.ShowTomorrowWeather)
+            {
+                height += 22;
+            }
+        }
+
+        if (_settings.ShowYearProgress)
+        {
+            height += 18;
+        }
+
+        if (_settings.ShowCountdown)
+        {
+            height += 22;
+        }
+
+        if (_settings.ShowDailyQuote)
+        {
+            height += 28;
+        }
+
+        if (_settings.ShowScratch)
+        {
+            height += 34;
+        }
+
+        Height = Math.Clamp(height, 420, 820);
     }
 
     private void RefreshExtras()
@@ -334,7 +413,7 @@ public partial class MainWindow : Window
 
         CalendarTitleText.Text = CalendarViewHelper.GetTitle(_calendarMode, _calendarAnchor, _calendarPreviewDate);
         UpdateCalendarModeButtons();
-        Height = _calendarMode == CalendarViewMode.Month ? 640 : 540;
+        UpdateWindowHeight();
 
         CalendarPanel.Children.Clear();
         var today = DateTime.Today;
@@ -855,6 +934,7 @@ public partial class MainWindow : Window
         _settings.ShowCityName = next.ShowCityName;
         _settings.AutoLocateCity = next.AutoLocateCity;
         _settings.ShowWeekStrip = next.ShowWeekStrip;
+        _settings.ShowHuangLi = next.ShowHuangLi;
         _settings.ShowYearProgress = next.ShowYearProgress;
         _settings.ShowCountdown = next.ShowCountdown;
         _settings.ShowDailyQuote = next.ShowDailyQuote;
@@ -1050,7 +1130,7 @@ public partial class MainWindow : Window
 
         if (_settings.ClickThrough)
         {
-            _tray?.ShowBalloon("已开启鼠标穿透，窗口无法拖动。请从托盘菜单取消勾选「鼠标穿透」。");
+            _tray?.ShowBalloon("已开启鼠标穿透，窗口无法拖动。请在设置中关闭。");
         }
     }
 
