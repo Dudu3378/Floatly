@@ -16,19 +16,33 @@ public static class HuangLiService
         var weekNo = ISOWeek.GetWeekOfYear(date);
         var weekName = solar.Week == 0 ? "周日" : $"周{solar.WeekInChinese}";
         var headline = $"{lunar.YearInGanZhi}年 {lunar.MonthInGanZhi}月 {lunar.DayInGanZhi}日 · 属{lunar.YearShengXiao} · {weekName} · 第{weekNo}周";
+        var solarDateText = $"{date.Year}年{date.Month}月{date.Day}日";
+        var lunarDateLarge = $"{lunar.MonthInChinese}{lunar.DayInChinese}";
+        var metaLine = $"{lunar.YearInGanZhi}年 {lunar.MonthInGanZhi}月 {lunar.DayInGanZhi}日 [属{lunar.YearShengXiao}] {weekName} 第{weekNo}周";
 
+        HuangLiCurrentTimeInfo? currentTime = null;
         string? currentHourZhi = null;
-        string? currentTimeSummary = null;
         if (includeCurrentTime && date.Date == DateTime.Today)
         {
             var now = DateTime.Now;
             var time = LunarTime.FromYmdHms(lunar.Year, lunar.Month, lunar.Day, now.Hour, now.Minute, now.Second);
             currentHourZhi = time.Zhi;
-            currentTimeSummary = $"当前时辰 {time.Zhi}时 {time.GanZhi} {time.MinHm}-{time.MaxHm} · 冲{time.ChongDesc} · {MapLuckShort(time.TianShenLuck)}";
+            currentTime = new HuangLiCurrentTimeInfo(
+                time.Zhi,
+                $"{time.GanZhi}时",
+                $"{time.MinHm}-{time.MaxHm}",
+                $"冲{time.ChongDesc}煞{time.Sha}",
+                time.PositionXiDesc,
+                time.PositionCaiDesc,
+                time.PositionFuDesc,
+                MapLuckShort(time.TianShenLuck),
+                ToItems(time.Yi),
+                ToItems(time.Ji));
         }
 
         var timeSlots = lunar.Times
             .Select(t => new HuangLiTimeSlot(
+                t.GanZhi,
                 t.Zhi,
                 MapLuckShort(t.TianShenLuck),
                 currentHourZhi is not null && t.Zhi == currentHourZhi))
@@ -36,6 +50,9 @@ public static class HuangLiService
 
         return new HuangLiDayInfo(
             headline,
+            solarDateText,
+            lunarDateLarge,
+            metaLine,
             ToItems(lunar.DayYi),
             ToItems(lunar.DayJi),
             lunar.DayNaYin,
@@ -45,13 +62,13 @@ public static class HuangLiService
             ToItems(lunar.DayJiShen),
             ToItems(lunar.DayXiongSha),
             lunar.DayPositionTai,
-            $"{lunar.PengZuGan} · {lunar.PengZuZhi}",
-            $"{lunar.Xiu}{lunar.XiuLuck}",
+            $"{lunar.PengZuGan} {lunar.PengZuZhi}",
+            $"{lunar.Xiu}{lunar.XiuLuck}宿星",
             lunar.DayPositionXiDesc,
             lunar.DayPositionCaiDesc,
             lunar.GetDayPositionFuDesc(2),
             timeSlots,
-            currentTimeSummary);
+            currentTime);
     }
 
     private static IReadOnlyList<string> ToItems(IList<string> items)
@@ -73,10 +90,25 @@ public static class HuangLiService
         };
 }
 
-public sealed record HuangLiTimeSlot(string Zhi, string Luck, bool IsCurrent);
+public sealed record HuangLiTimeSlot(string GanZhi, string Zhi, string Luck, bool IsCurrent);
+
+public sealed record HuangLiCurrentTimeInfo(
+    string Zhi,
+    string GanZhiLabel,
+    string TimeRange,
+    string ChongSha,
+    string XiShen,
+    string CaiShen,
+    string FuShen,
+    string Luck,
+    IReadOnlyList<string> YiItems,
+    IReadOnlyList<string> JiItems);
 
 public sealed record HuangLiDayInfo(
     string Headline,
+    string SolarDateText,
+    string LunarDateLarge,
+    string MetaLine,
     IReadOnlyList<string> YiItems,
     IReadOnlyList<string> JiItems,
     string WuXing,
@@ -92,4 +124,4 @@ public sealed record HuangLiDayInfo(
     string CaiShen,
     string FuShen,
     IReadOnlyList<HuangLiTimeSlot> TimeSlots,
-    string? CurrentTimeSummary);
+    HuangLiCurrentTimeInfo? CurrentTime);

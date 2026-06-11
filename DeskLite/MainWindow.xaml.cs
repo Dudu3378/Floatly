@@ -130,6 +130,8 @@ public partial class MainWindow : Window
         var showWeek = _settings.ShowWeekStrip;
         CalendarSection.Visibility = showWeek ? Visibility.Visible : Visibility.Collapsed;
         HuangLiPanel.Visibility = _settings.ShowHuangLi ? Visibility.Visible : Visibility.Collapsed;
+        LunarText.Visibility = _settings.ShowHuangLi ? Visibility.Collapsed : Visibility.Visible;
+        LunarSubText.Visibility = _settings.ShowHuangLi ? Visibility.Collapsed : Visibility.Visible;
 
         Width = Math.Clamp(_settings.WindowWidth, 260, 480);
         if (_settings.UserCustomSize)
@@ -326,121 +328,142 @@ public partial class MainWindow : Window
         if (!_settings.ShowHuangLi)
         {
             HuangLiPanel.Visibility = Visibility.Collapsed;
+            LunarText.Visibility = Visibility.Visible;
+            LunarSubText.Visibility = Visibility.Visible;
             LunarSubText.Text = LunarCalendar.Get(displayDate).SubLine;
             return;
         }
 
         HuangLiPanel.Visibility = Visibility.Visible;
-        var huangLi = HuangLiService.Get(displayDate, includeCurrentTime: _calendarPreviewDate is null);
-        LunarSubText.Text = huangLi.Headline;
+        LunarText.Visibility = Visibility.Collapsed;
+        LunarSubText.Visibility = Visibility.Collapsed;
 
-        PopulateHuangLiChips(HuangLiYiChips, huangLi.YiItems, isYi: true);
-        PopulateHuangLiChips(HuangLiJiChips, huangLi.JiItems, isYi: false);
+        var huangLi = HuangLiService.Get(displayDate, includeCurrentTime: _calendarPreviewDate is null);
+
+        HuangLiSolarDate.Text = huangLi.SolarDateText;
+        HuangLiLunarLarge.Text = huangLi.LunarDateLarge;
+        HuangLiMetaLine.Text = huangLi.MetaLine;
+        HuangLiYiText.Text = JoinHuangLiItems(huangLi.YiItems);
+        HuangLiJiText.Text = JoinHuangLiItems(huangLi.JiItems);
 
         HuangLiWuXingVal.Text = huangLi.WuXing;
         HuangLiChongVal.Text = huangLi.ChongSha;
         HuangLiZhiVal.Text = huangLi.ZhiShen;
         HuangLiJianVal.Text = huangLi.JianChu;
 
-        HuangLiXiText.Text = $"喜神 {huangLi.XiShen}";
-        HuangLiCaiText.Text = $"财神 {huangLi.CaiShen}";
-        HuangLiFuText.Text = $"福神 {huangLi.FuShen}";
+        HuangLiJiShenVal.Text = JoinHuangLiItems(huangLi.JiShen);
+        HuangLiTaiShenVal.Text = huangLi.TaiShen;
+        HuangLiXiongVal.Text = JoinHuangLiItems(huangLi.XiongShen);
+        HuangLiPengZuVal.Text = huangLi.PengZu;
+        HuangLiXiuVal.Text = huangLi.Xiu;
 
-        PopulateHuangLiTimeGrid(huangLi.TimeSlots);
-
-        PopulateHuangLiNeutralChips(HuangLiJiShenWrap, huangLi.JiShen);
-        PopulateHuangLiNeutralChips(HuangLiXiongWrap, huangLi.XiongShen);
-        HuangLiSecondaryText.Text = $"胎神 {huangLi.TaiShen} · 彭祖 {huangLi.PengZu} · 星宿 {huangLi.Xiu}";
-
-        if (!string.IsNullOrEmpty(huangLi.CurrentTimeSummary))
-        {
-            HuangLiCurrentTimeText.Text = huangLi.CurrentTimeSummary;
-            HuangLiCurrentTimeText.Visibility = Visibility.Visible;
-        }
-        else
-        {
-            HuangLiCurrentTimeText.Visibility = Visibility.Collapsed;
-        }
+        PopulateHuangLiTimeStrip(huangLi.TimeSlots);
+        PopulateHuangLiCurrentCard(huangLi.CurrentTime);
 
         UpdateWindowHeight();
     }
 
+    private static string JoinHuangLiItems(IReadOnlyList<string> items) =>
+        string.Join(" ", items);
+
+    private void HuangLiPrev_Click(object sender, RoutedEventArgs e) => ShiftHuangLiDay(-1);
+
+    private void HuangLiNext_Click(object sender, RoutedEventArgs e) => ShiftHuangLiDay(1);
+
+    private void HuangLiMore_Click(object sender, MouseButtonEventArgs e)
+    {
+        // Stub: reserved for expanded HuangLi view.
+    }
+
+    private void ShiftHuangLiDay(int delta)
+    {
+        var baseDate = _calendarPreviewDate ?? DateTime.Today;
+        _calendarPreviewDate = baseDate.AddDays(delta);
+        SaveCalendarState();
+        RefreshClock();
+    }
+
+    private void PopulateHuangLiCurrentCard(HuangLiCurrentTimeInfo? currentTime)
+    {
+        if (currentTime is null)
+        {
+            HuangLiCurrentCard.Visibility = Visibility.Collapsed;
+            HuangLiCurrentDivider.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        HuangLiCurrentCard.Visibility = Visibility.Visible;
+        HuangLiCurrentDivider.Visibility = Visibility.Visible;
+        HuangLiCurrentZhi.Text = currentTime.Zhi;
+        HuangLiCurrentSummary.Text = $"{currentTime.GanZhiLabel} {currentTime.TimeRange} {currentTime.ChongSha}";
+        HuangLiCurrentDirections.Text = $"喜神{currentTime.XiShen} 财神{currentTime.CaiShen} 福神{currentTime.FuShen}";
+        HuangLiCurrentLuckText.Text = currentTime.Luck;
+        HuangLiCurrentYiText.Text = JoinHuangLiItems(currentTime.YiItems);
+        HuangLiCurrentJiText.Text = JoinHuangLiItems(currentTime.JiItems);
+
+        var luckIsGood = currentTime.Luck == "吉";
+        HuangLiCurrentLuckBadge.Background = Brush(luckIsGood ? _palette.HuangLiYiCircle : _palette.HuangLiJiCircle);
+    }
+
     private void ApplyHuangLiTheme()
     {
+        var border = Brush(_palette.HuangLiBorder);
         HuangLiPanel.Background = Brush(_palette.HuangLiBackground);
-        HuangLiYiLabel.Foreground = Brush(_palette.HuangLiYi);
-        HuangLiJiLabel.Foreground = Brush(_palette.HuangLiJi);
-        HuangLiWuXingLabel.Foreground = Brush(_palette.TextEmpty);
-        HuangLiChongLabel.Foreground = Brush(_palette.TextEmpty);
-        HuangLiZhiLabel.Foreground = Brush(_palette.TextEmpty);
-        HuangLiJianLabel.Foreground = Brush(_palette.TextEmpty);
+        HuangLiSolarDate.Foreground = Brush(_palette.TextEmpty);
+        HuangLiLunarLarge.Foreground = Brush(_palette.HuangLiAccent);
+        HuangLiMetaLine.Foreground = Brush(_palette.TextEmpty);
+        HuangLiPrevBtn.Foreground = Brush(_palette.HuangLiAccent);
+        HuangLiNextBtn.Foreground = Brush(_palette.HuangLiAccent);
+        HuangLiYiCircle.Background = Brush(_palette.HuangLiYiCircle);
+        HuangLiJiCircle.Background = Brush(_palette.HuangLiJiCircle);
+        HuangLiCurrentYiCircle.Background = Brush(_palette.HuangLiYiCircle);
+        HuangLiCurrentJiCircle.Background = Brush(_palette.HuangLiJiCircle);
+        HuangLiCurrentZhiCircle.Background = Brush(_palette.HuangLiAccent);
+        HuangLiYiText.Foreground = Brush(_palette.TextPrimary);
+        HuangLiJiText.Foreground = Brush(_palette.TextPrimary);
+        HuangLiWuXingLabel.Foreground = Brush(_palette.HuangLiLabel);
+        HuangLiChongLabel.Foreground = Brush(_palette.HuangLiLabel);
+        HuangLiZhiLabel.Foreground = Brush(_palette.HuangLiLabel);
+        HuangLiJianLabel.Foreground = Brush(_palette.HuangLiLabel);
+        HuangLiTaiShenLabel.Foreground = Brush(_palette.HuangLiLabel);
+        HuangLiPengZuLabel.Foreground = Brush(_palette.HuangLiLabel);
+        HuangLiXiuLabel.Foreground = Brush(_palette.HuangLiLabel);
+        HuangLiTimeTitle.Foreground = Brush(_palette.HuangLiLabel);
+        HuangLiXiongLabel.Foreground = Brush(_palette.HuangLiLabel);
         HuangLiWuXingVal.Foreground = Brush(_palette.TextSecondary);
         HuangLiChongVal.Foreground = Brush(_palette.TextSecondary);
         HuangLiZhiVal.Foreground = Brush(_palette.TextSecondary);
         HuangLiJianVal.Foreground = Brush(_palette.TextSecondary);
-        HuangLiMetaWuXing.Background = Brush(_palette.HuangLiMetaCell);
-        HuangLiMetaChong.Background = Brush(_palette.HuangLiMetaCell);
-        HuangLiMetaZhi.Background = Brush(_palette.HuangLiMetaCell);
-        HuangLiMetaJian.Background = Brush(_palette.HuangLiMetaCell);
-        HuangLiXiBadge.Background = Brush(_palette.HuangLiBadgeBg);
-        HuangLiCaiBadge.Background = Brush(_palette.HuangLiBadgeBg);
-        HuangLiFuBadge.Background = Brush(_palette.HuangLiBadgeBg);
-        HuangLiXiText.Foreground = Brush(_palette.TextSecondary);
-        HuangLiCaiText.Foreground = Brush(_palette.TextSecondary);
-        HuangLiFuText.Foreground = Brush(_palette.TextSecondary);
-        HuangLiTimeTitle.Foreground = Brush(_palette.TextEmpty);
-        HuangLiJiShenLabel.Foreground = Brush(_palette.TextEmpty);
-        HuangLiXiongLabel.Foreground = Brush(_palette.TextEmpty);
-        HuangLiSecondaryText.Foreground = Brush(_palette.TextEmpty);
-        HuangLiCurrentTimeText.Foreground = Brush(_palette.Accent);
+        HuangLiJiShenVal.Foreground = Brush(_palette.TextSecondary);
+        HuangLiTaiShenVal.Foreground = Brush(_palette.TextSecondary);
+        HuangLiXiongVal.Foreground = Brush(_palette.TextSecondary);
+        HuangLiPengZuVal.Foreground = Brush(_palette.TextSecondary);
+        HuangLiXiuVal.Foreground = Brush(_palette.TextSecondary);
+        HuangLiMetaGridBorder.BorderBrush = border;
+        HuangLiTimeStripBorder.BorderBrush = border;
+        HuangLiDetailBorder.BorderBrush = border;
+        HuangLiCurrentDivider.Background = border;
+        HuangLiMetaWuXing.BorderBrush = border;
+        HuangLiMetaChong.BorderBrush = border;
+        HuangLiJianCell.BorderBrush = border;
+        HuangLiJiShenInner.BorderBrush = border;
+        HuangLiTaiShenInner.BorderBrush = border;
+        HuangLiXiongInner.BorderBrush = border;
+        HuangLiXiuCell.BorderBrush = border;
+        HuangLiCurrentTitle.Foreground = Brush(_palette.TextPrimary);
+        HuangLiCurrentSummary.Foreground = Brush(_palette.TextPrimary);
+        HuangLiCurrentDirections.Foreground = Brush(_palette.TextEmpty);
+        HuangLiCurrentYiText.Foreground = Brush(_palette.TextSecondary);
+        HuangLiCurrentJiText.Foreground = Brush(_palette.TextSecondary);
+        HuangLiCurrentLuckText.Foreground = Brush(_palette.HuangLiCircleText);
+        HuangLiMoreBtn.Background = Brush(_palette.HuangLiMutedButton);
+        HuangLiMoreText.Foreground = Brush(_palette.TextEmpty);
         FontScaleHelper.Apply(this, _settings.FontScale);
     }
 
-    private void PopulateHuangLiNeutralChips(WrapPanel panel, IReadOnlyList<string> items)
+    private void PopulateHuangLiTimeStrip(IReadOnlyList<HuangLiTimeSlot> slots)
     {
-        panel.Children.Clear();
-        foreach (var item in items)
-        {
-            panel.Children.Add(new Border
-            {
-                Background = Brush(_palette.HuangLiMetaCell),
-                CornerRadius = new CornerRadius(4),
-                Padding = new Thickness(5, 2, 5, 2),
-                Margin = new Thickness(0, 0, 4, 4),
-                Child = new TextBlock
-                {
-                    Text = item,
-                    FontSize = 9,
-                    Foreground = Brush(_palette.TextSubtle)
-                }
-            });
-        }
-    }
-
-    private void PopulateHuangLiChips(WrapPanel panel, IReadOnlyList<string> items, bool isYi)
-    {
-        panel.Children.Clear();
-        foreach (var item in items)
-        {
-            panel.Children.Add(new Border
-            {
-                Background = Brush(isYi ? _palette.HuangLiYiChipBg : _palette.HuangLiJiChipBg),
-                CornerRadius = new CornerRadius(4),
-                Padding = new Thickness(6, 2, 6, 2),
-                Margin = new Thickness(0, 0, 4, 4),
-                Child = new TextBlock
-                {
-                    Text = item,
-                    FontSize = 10,
-                    Foreground = Brush(isYi ? _palette.HuangLiYi : _palette.HuangLiJi)
-                }
-            });
-        }
-    }
-
-    private void PopulateHuangLiTimeGrid(IReadOnlyList<HuangLiTimeSlot> slots)
-    {
-        HuangLiTimeGrid.Children.Clear();
+        HuangLiTimeStrip.Children.Clear();
         foreach (var slot in slots.Take(12))
         {
             var luckBrush = slot.Luck == "吉"
@@ -451,10 +474,10 @@ public partial class MainWindow : Window
 
             var cell = new Border
             {
-                Background = slot.IsCurrent ? Brush(_palette.Accent) : Brush(_palette.HuangLiTimeCell),
-                CornerRadius = new CornerRadius(3),
-                Padding = new Thickness(2, 3, 2, 3),
-                Margin = new Thickness(0),
+                BorderBrush = slot.IsCurrent ? Brush(_palette.HuangLiCurrentBorder) : Brush(_palette.HuangLiBorder),
+                BorderThickness = slot.IsCurrent ? new Thickness(1) : new Thickness(0, 0, 1, 0),
+                Background = Brush(_palette.HuangLiBackground),
+                Padding = new Thickness(0, 2, 0, 2),
                 Child = new StackPanel
                 {
                     HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
@@ -462,25 +485,22 @@ public partial class MainWindow : Window
                     {
                         new TextBlock
                         {
-                            Text = slot.Zhi,
-                            FontSize = 9,
-                            FontWeight = slot.IsCurrent ? FontWeights.SemiBold : FontWeights.Normal,
-                            Foreground = slot.IsCurrent
-                                ? Brush(_palette.TextPrimary)
-                                : Brush(_palette.TextSecondary),
+                            Text = slot.GanZhi,
+                            FontSize = 7,
+                            Foreground = Brush(_palette.TextSecondary),
                             HorizontalAlignment = System.Windows.HorizontalAlignment.Center
                         },
                         new TextBlock
                         {
                             Text = slot.Luck,
-                            FontSize = 8,
-                            Foreground = slot.IsCurrent ? Brush(_palette.TextPrimary) : luckBrush,
+                            FontSize = 7,
+                            Foreground = luckBrush,
                             HorizontalAlignment = System.Windows.HorizontalAlignment.Center
                         }
                     }
                 }
             };
-            HuangLiTimeGrid.Children.Add(cell);
+            HuangLiTimeStrip.Children.Add(cell);
         }
     }
 
@@ -492,7 +512,7 @@ public partial class MainWindow : Window
         }
 
         const double headerHeight = 72;
-        const double scrollBody = 240;
+        var scrollBody = _settings.ShowHuangLi ? 430 : 240;
         const double todoInput = 40;
         const double chrome = 28;
 
