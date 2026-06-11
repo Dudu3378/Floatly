@@ -32,6 +32,11 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
 
+        if (AppIconService.GetIconUri() is { } iconUri)
+        {
+            Icon = System.Windows.Media.Imaging.BitmapFrame.Create(iconUri);
+        }
+
         _settings = JsonStore.LoadSettings();
         LoadCalendarState();
         SyncAutoStartSetting();

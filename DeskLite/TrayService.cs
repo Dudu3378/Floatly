@@ -82,7 +82,7 @@ public sealed class TrayService : IDisposable
         _icon = new NotifyIcon
         {
             Text = "DeskLite",
-            Icon = System.Drawing.SystemIcons.Application,
+            Icon = AppIconService.LoadTrayIcon(),
             Visible = true
         };
 
@@ -194,7 +194,12 @@ public sealed class TrayService : IDisposable
 
     public void Dispose()
     {
+        var icon = _icon.Icon;
         _icon.Visible = false;
         _icon.Dispose();
+        if (icon is not null && !ReferenceEquals(icon, System.Drawing.SystemIcons.Application))
+        {
+            icon.Dispose();
+        }
     }
 }
