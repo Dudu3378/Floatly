@@ -31,13 +31,20 @@ public sealed class WeatherService
         }
     }
 
-    public async Task<WeatherFetchResult?> FetchAsync(string city, double? lat, double? lon, CancellationToken ct = default)
+    public async Task<WeatherFetchResult?> FetchAsync(
+        string city,
+        double? lat,
+        double? lon,
+        string? region = null,
+        string? locationSource = null,
+        CancellationToken ct = default)
     {
         try
         {
+            GeoResult? geo = null;
             if (lat is null || lon is null)
             {
-                var geo = await GeocodeAsync(city, ct);
+                geo = await GeocodeAsync(city, ct);
                 if (geo is null)
                 {
                     var cached = LoadCache();
@@ -46,6 +53,8 @@ public sealed class WeatherService
 
                 lat = geo.Latitude;
                 lon = geo.Longitude;
+                city = geo.Name;
+                region ??= geo.Region;
             }
 
             var url =
@@ -85,6 +94,8 @@ public sealed class WeatherService
             var cache = new WeatherCache
             {
                 City = city,
+                Region = region,
+                LocationSource = locationSource ?? "manual",
                 Temperature = temp,
                 TempMin = min,
                 TempMax = max,
@@ -140,7 +151,13 @@ public sealed class WeatherService
         }
 
         var first = results[0];
-        return new GeoResult(first.GetProperty("latitude").GetDouble(), first.GetProperty("longitude").GetDouble());
+        var name = first.GetProperty("name").GetString() ?? city;
+        var region = first.TryGetProperty("admin1", out var admin) ? admin.GetString() : null;
+        return new GeoResult(
+            first.GetProperty("latitude").GetDouble(),
+            first.GetProperty("longitude").GetDouble(),
+            name,
+            region);
     }
 
     private static string DescribeWeather(int code) => code switch
@@ -168,5 +185,5 @@ public sealed class WeatherService
         _ => "☁"
     };
 
-    private sealed record GeoResult(double Latitude, double Longitude);
+    private sealed record GeoResult(double Latitude, double Longitude, string Name, string? Region);
 }

@@ -3,6 +3,8 @@ namespace DeskLite.Models;
 public sealed class WeatherCache
 {
     public string City { get; set; } = string.Empty;
+    public string? Region { get; set; }
+    public string? LocationSource { get; set; }
     public int Temperature { get; set; }
     public int TempMin { get; set; }
     public int TempMax { get; set; }

@@ -16,11 +16,14 @@ public partial class MainWindow : Window
 
     private readonly TodoStore _todoStore = new();
     private readonly WeatherService _weatherService = new();
+    private readonly LocationService _locationService = new();
     private readonly TodoReminderService _reminderService = new();
     private readonly AppSettings _settings;
     private readonly DispatcherTimer _clockTimer;
     private DateTime _lastWeatherFetch = DateTime.MinValue;
     private DateTime? _calendarPreviewDate;
+    private CalendarViewMode _calendarMode = CalendarViewMode.Week;
+    private DateTime _calendarAnchor = DateTime.Today;
     private TrayService? _tray;
     private GlobalHotkeyService? _hotkeyService;
     private AppThemePalette _palette = AppThemePalette.For(ThemeMode.Dark);
@@ -30,12 +33,13 @@ public partial class MainWindow : Window
         InitializeComponent();
 
         _settings = JsonStore.LoadSettings();
+        LoadCalendarState();
         SyncAutoStartSetting();
         ApplySettings();
 
         RefreshClock();
         RefreshExtras();
-        RefreshWeekStrip();
+        RefreshCalendar();
         RefreshTodos();
         LoadScratch();
         _ = RefreshWeatherAsync();
@@ -60,8 +64,13 @@ public partial class MainWindow : Window
             ToggleTopmost,
             ToggleAutoStart,
             SetCity,
+            DetectLocationByIp,
             ToggleWeather,
             ToggleWeekStrip,
+            SetCalendarWeek,
+            SetCalendarMonth,
+            JumpToCalendarDate,
+            ResetCalendarToday,
             ToggleModule,
             AddCountdown,
             ExportBackup,
@@ -108,6 +117,7 @@ public partial class MainWindow : Window
         ApplyTheme();
 
         WeatherText.Visibility = _settings.ShowWeather ? Visibility.Visible : Visibility.Collapsed;
+        CityText.Visibility = _settings.ShowWeather && _settings.ShowCityName ? Visibility.Visible : Visibility.Collapsed;
         YearProgressText.Visibility = _settings.ShowYearProgress ? Visibility.Visible : Visibility.Collapsed;
         CountdownText.Visibility = _settings.ShowCountdown ? Visibility.Visible : Visibility.Collapsed;
         DailyQuoteText.Visibility = _settings.ShowDailyQuote ? Visibility.Visible : Visibility.Collapsed;
@@ -117,8 +127,22 @@ public partial class MainWindow : Window
         WeatherExtraText.Visibility = showWeatherExtra ? Visibility.Visible : Visibility.Collapsed;
 
         var showWeek = _settings.ShowWeekStrip;
-        WeekStrip.Visibility = showWeek ? Visibility.Visible : Visibility.Collapsed;
-        WeekStripTitle.Visibility = showWeek ? Visibility.Visible : Visibility.Collapsed;
+        CalendarSection.Visibility = showWeek ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void LoadCalendarState()
+    {
+        _calendarMode = CalendarViewHelper.ParseMode(_settings.CalendarMode);
+        _calendarAnchor = DateTime.TryParse(_settings.CalendarAnchorDate, out var anchor)
+            ? anchor
+            : DateTime.Today;
+    }
+
+    private void SaveCalendarState()
+    {
+        _settings.CalendarMode = CalendarViewHelper.ToSettingValue(_calendarMode);
+        _settings.CalendarAnchorDate = _calendarAnchor.ToString("yyyy-MM-dd");
+        JsonStore.SaveSettings(_settings);
     }
 
     private void ApplyTheme()
@@ -134,13 +158,17 @@ public partial class MainWindow : Window
         LunarText.Foreground = Brush(_palette.TextTertiary);
         LunarSubText.Foreground = Brush(_palette.TextSubtle);
         WeatherText.Foreground = Brush(_palette.TextSecondary);
+        CityText.Foreground = Brush(_palette.TextMuted);
         WeatherExtraText.Foreground = Brush(_palette.TextSubtle);
         YearProgressText.Foreground = Brush(_palette.TextMuted);
         CountdownText.Foreground = Brush(_palette.TextSecondary);
         DailyQuoteText.Foreground = Brush(_palette.TextMuted);
         TodoTitleText.Foreground = Brush(_palette.TextMuted);
         EmptyTodoText.Foreground = Brush(_palette.TextEmpty);
-        WeekStripTitle.Foreground = Brush(_palette.TextEmpty);
+        CalendarTitleText.Foreground = Brush(_palette.TextEmpty);
+        CalPrevBtn.Foreground = Brush(_palette.TextMuted);
+        CalNextBtn.Foreground = Brush(_palette.TextMuted);
+        UpdateCalendarModeButtons();
 
         NewTodoBox.Background = Brush(_palette.InputBackground);
         NewTodoBox.BorderBrush = Brush(_palette.InputBorder);
@@ -152,8 +180,17 @@ public partial class MainWindow : Window
         Resources["TodoTextBrush"] = Brush(_palette.TodoText);
         Resources["TodoDeleteBrush"] = Brush(_palette.DeleteButton);
 
-        RefreshWeekStrip();
+        RefreshCalendar();
         RefreshTodoTheme();
+    }
+
+    private void UpdateCalendarModeButtons()
+    {
+        var isWeek = _calendarMode == CalendarViewMode.Week;
+        CalWeekModeBtn.Foreground = Brush(isWeek ? _palette.Accent : _palette.TextEmpty);
+        CalMonthModeBtn.Foreground = Brush(isWeek ? _palette.TextEmpty : _palette.Accent);
+        CalWeekModeBtn.FontWeight = isWeek ? FontWeights.SemiBold : FontWeights.Normal;
+        CalMonthModeBtn.FontWeight = isWeek ? FontWeights.Normal : FontWeights.SemiBold;
     }
 
     private void RefreshTodoTheme()
@@ -189,6 +226,7 @@ public partial class MainWindow : Window
             case "sunrise": _settings.ShowSunriseSunset = !_settings.ShowSunriseSunset; break;
             case "tomorrow": _settings.ShowTomorrowWeather = !_settings.ShowTomorrowWeather; break;
             case "scratch": _settings.ShowScratch = !_settings.ShowScratch; break;
+            case "cityName": _settings.ShowCityName = !_settings.ShowCityName; break;
             case "todoReminder": _settings.ShowTodoReminder = !_settings.ShowTodoReminder; break;
             case "hotkey":
                 _settings.EnableGlobalHotkey = !_settings.EnableGlobalHotkey;
@@ -207,6 +245,10 @@ public partial class MainWindow : Window
 
         ApplySettings();
         RefreshExtras();
+        if (key is "cityName")
+        {
+            RefreshCityDisplay(_weatherService.LoadCache());
+        }
         JsonStore.SaveSettings(_settings);
         _tray?.RefreshMenu();
         if (key is "sunrise" or "tomorrow")
@@ -229,7 +271,7 @@ public partial class MainWindow : Window
 
         LunarText.Text = info.Line;
         LunarSubText.Text = info.SubLine;
-        RefreshWeekStrip();
+        RefreshCalendar();
     }
 
     private void RefreshExtras()
@@ -251,78 +293,144 @@ public partial class MainWindow : Window
         }
     }
 
-    private void RefreshWeekStrip()
+    private void RefreshCalendar()
     {
         if (!_settings.ShowWeekStrip)
         {
             return;
         }
 
-        WeekStrip.Children.Clear();
+        CalendarTitleText.Text = CalendarViewHelper.GetTitle(_calendarMode, _calendarAnchor, _calendarPreviewDate);
+        UpdateCalendarModeButtons();
+        Height = _calendarMode == CalendarViewMode.Month ? 640 : 540;
+
+        CalendarPanel.Children.Clear();
         var today = DateTime.Today;
-        var monday = today.AddDays(-((int)today.DayOfWeek + 6) % 7);
         var preview = _calendarPreviewDate?.Date;
+        var days = (_calendarMode == CalendarViewMode.Month
+            ? CalendarViewHelper.GetMonthGridDays(_calendarAnchor)
+            : CalendarViewHelper.GetWeekDays(_calendarAnchor)).ToList();
 
-        WeekStripTitle.Text = preview is null || preview == today
-            ? "本周 · 万年历"
-            : $"查看 {preview.Value.Month}/{preview.Value.Day} · 点击其他日期切换";
+        WeekdayHeader.Visibility = _calendarMode == CalendarViewMode.Month
+            ? Visibility.Visible
+            : Visibility.Collapsed;
 
-        for (var i = 0; i < 7; i++)
+        if (_calendarMode == CalendarViewMode.Month)
         {
-            var day = monday.AddDays(i);
-            var isToday = day == today;
-            var isPreview = preview == day;
-            var dayInfo = LunarCalendar.Get(day);
-            var hasMark = dayInfo.Mark is not null;
-            var holiday = HolidayService.GetMark(day);
-
-            var cell = new StackPanel
+            WeekdayHeader.Children.Clear();
+            for (var i = 0; i < 7; i++)
             {
-                HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
-                Cursor = System.Windows.Input.Cursors.Hand,
-                Tag = day
-            };
-            cell.MouseLeftButtonDown += WeekDay_Click;
+                WeekdayHeader.Children.Add(new TextBlock
+                {
+                    Text = WeekLabels[i],
+                    FontSize = 9,
+                    Foreground = Brush(_palette.WeekLabel),
+                    HorizontalAlignment = System.Windows.HorizontalAlignment.Center
+                });
+            }
+        }
 
+        var grid = new System.Windows.Controls.Primitives.UniformGrid
+        {
+            Rows = _calendarMode == CalendarViewMode.Month ? 6 : 1,
+            Columns = 7
+        };
+
+        foreach (var day in days)
+        {
+            grid.Children.Add(BuildCalendarCell(day, today, preview));
+        }
+
+        CalendarPanel.Children.Add(grid);
+    }
+
+    private UIElement BuildCalendarCell(DateTime day, DateTime today, DateTime? preview)
+    {
+        var isToday = day == today;
+        var isPreview = preview == day;
+        var inMonth = _calendarMode == CalendarViewMode.Week || CalendarViewHelper.IsSameMonth(day, _calendarAnchor);
+        var dayInfo = LunarCalendar.Get(day);
+        var hasMark = dayInfo.Mark is not null;
+        var holiday = HolidayService.GetMark(day);
+
+        var cell = new StackPanel
+        {
+            HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
+            Cursor = System.Windows.Input.Cursors.Hand,
+            Tag = day,
+            Margin = new Thickness(0, 1, 0, 1)
+        };
+        cell.MouseLeftButtonDown += CalendarDay_Click;
+
+        if (_calendarMode == CalendarViewMode.Week)
+        {
             cell.Children.Add(new TextBlock
             {
-                Text = WeekLabels[i],
+                Text = WeekLabels[((int)day.DayOfWeek + 6) % 7],
                 FontSize = 10,
                 Foreground = isPreview ? Brush(_palette.Accent) : Brush(_palette.WeekLabel),
                 HorizontalAlignment = System.Windows.HorizontalAlignment.Center
             });
-            cell.Children.Add(new TextBlock
-            {
-                Text = isToday && preview is null ? "●" : day.Day.ToString(),
-                FontSize = isToday ? 10 : 11,
-                FontWeight = isPreview ? FontWeights.SemiBold : FontWeights.Normal,
-                Foreground = isToday || isPreview ? Brush(_palette.Accent) : Brush(_palette.WeekSolar),
-                HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
-                Margin = new Thickness(0, 1, 0, 0)
-            });
-            cell.Children.Add(new TextBlock
-            {
-                Text = hasMark ? dayInfo.Mark! : dayInfo.ShortLunar,
-                FontSize = 9,
-                Foreground = hasMark ? Brush(_palette.Mark) : Brush(_palette.WeekLunar),
-                HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
-                Margin = new Thickness(0, 1, 0, 0),
-                TextTrimming = TextTrimming.CharacterEllipsis
-            });
-
-            if (holiday is not null)
-            {
-                cell.Children.Add(new TextBlock
-                {
-                    Text = holiday,
-                    FontSize = 8,
-                    Foreground = holiday == "休" ? Brush(0x22, 0xC5, 0x5E) : Brush(0xEF, 0x44, 0x44),
-                    HorizontalAlignment = System.Windows.HorizontalAlignment.Center
-                });
-            }
-
-            WeekStrip.Children.Add(cell);
         }
+
+        cell.Children.Add(new TextBlock
+        {
+            Text = isToday && preview is null ? "●" : day.Day.ToString(),
+            FontSize = _calendarMode == CalendarViewMode.Month ? 10 : isToday ? 10 : 11,
+            FontWeight = isPreview ? FontWeights.SemiBold : FontWeights.Normal,
+            Foreground = !inMonth
+                ? Brush(0x4B, 0x55, 0x63)
+                : isToday || isPreview ? Brush(_palette.Accent) : Brush(_palette.WeekSolar),
+            HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
+            Margin = new Thickness(0, 1, 0, 0)
+        });
+
+        var lunarText = hasMark ? dayInfo.Mark! : dayInfo.ShortLunar;
+        if (_calendarMode == CalendarViewMode.Month && lunarText.Length > 3)
+        {
+            lunarText = dayInfo.ShortLunar;
+        }
+
+        cell.Children.Add(new TextBlock
+        {
+            Text = lunarText,
+            FontSize = 8,
+            Foreground = hasMark ? Brush(_palette.Mark) : Brush(_palette.WeekLunar),
+            HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
+            TextTrimming = TextTrimming.CharacterEllipsis
+        });
+
+        if (holiday is not null)
+        {
+            cell.Children.Add(new TextBlock
+            {
+                Text = holiday,
+                FontSize = 7,
+                Foreground = holiday == "休" ? Brush(0x22, 0xC5, 0x5E) : Brush(0xEF, 0x44, 0x44),
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Center
+            });
+        }
+
+        return cell;
+    }
+
+    private void RefreshCityDisplay(WeatherCache? cache = null)
+    {
+        if (!_settings.ShowWeather || !_settings.ShowCityName)
+        {
+            CityText.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        var city = cache?.City ?? _settings.ResolvedCityName ?? _settings.City;
+        var region = cache?.Region ?? _settings.ResolvedRegion;
+        var source = cache?.LocationSource ?? "manual";
+        var sourceLabel = source == "ip" ? "IP定位" : "手动";
+
+        CityText.Text = string.IsNullOrWhiteSpace(region)
+            ? $"📍 {city}（{sourceLabel}）"
+            : $"📍 {city} · {region}";
+        CityText.Visibility = Visibility.Visible;
     }
 
     private SolidColorBrush Brush(System.Windows.Media.Color color) => new(color);
@@ -330,7 +438,7 @@ public partial class MainWindow : Window
     private static SolidColorBrush Brush(byte r, byte g, byte b) =>
         new(System.Windows.Media.Color.FromRgb(r, g, b));
 
-    private void WeekDay_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    private void CalendarDay_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
     {
         if (sender is not StackPanel { Tag: DateTime day })
         {
@@ -339,13 +447,11 @@ public partial class MainWindow : Window
 
         if (e.ClickCount >= 2 && day == DateTime.Today)
         {
-            _calendarPreviewDate = null;
-        }
-        else
-        {
-            _calendarPreviewDate = day == _calendarPreviewDate ? null : day;
+            ResetCalendarToday();
+            return;
         }
 
+        _calendarPreviewDate = day == _calendarPreviewDate ? null : day;
         RefreshClock();
     }
 
@@ -360,14 +466,21 @@ public partial class MainWindow : Window
         if (oldCache is not null)
         {
             ApplyWeather(oldCache);
+            RefreshCityDisplay(oldCache);
         }
 
-        var result = await _weatherService.FetchAsync(_settings.City, _settings.WeatherLatitude, _settings.WeatherLongitude);
+        var result = await _weatherService.FetchAsync(
+            _settings.City,
+            _settings.WeatherLatitude,
+            _settings.WeatherLongitude,
+            _settings.ResolvedRegion,
+            oldCache?.LocationSource);
         _lastWeatherFetch = DateTime.Now;
 
         if (result is null)
         {
-            WeatherText.Text = $"{_settings.City}  天气加载失败";
+            WeatherText.Text = "天气加载失败";
+            RefreshCityDisplay();
             WeatherExtraText.Visibility = Visibility.Collapsed;
             return;
         }
@@ -376,10 +489,14 @@ public partial class MainWindow : Window
         {
             _settings.WeatherLatitude = result.Latitude;
             _settings.WeatherLongitude = result.Longitude;
+            _settings.ResolvedCityName = result.Cache.City;
+            _settings.ResolvedRegion = result.Cache.Region;
+            _settings.City = result.Cache.City;
             JsonStore.SaveSettings(_settings);
         }
 
         ApplyWeather(result.Cache);
+        RefreshCityDisplay(result.Cache);
     }
 
     private void ApplyWeather(WeatherCache cache)
@@ -588,10 +705,102 @@ public partial class MainWindow : Window
     {
         _settings.ShowWeekStrip = !_settings.ShowWeekStrip;
         ApplySettings();
-        RefreshWeekStrip();
+        RefreshCalendar();
         JsonStore.SaveSettings(_settings);
         _tray?.RefreshMenu();
     }
+
+    public async void DetectLocationByIp()
+    {
+        var loc = await _locationService.DetectByIpAsync();
+        if (loc is null)
+        {
+            _tray?.ShowBalloon("定位失败，请检查网络或手动设置城市");
+            return;
+        }
+
+        _settings.City = loc.City;
+        _settings.ResolvedCityName = loc.City;
+        _settings.ResolvedRegion = loc.Region;
+        _settings.WeatherLatitude = loc.Latitude;
+        _settings.WeatherLongitude = loc.Longitude;
+        JsonStore.SaveSettings(_settings);
+
+        var result = await _weatherService.FetchAsync(loc.City, loc.Latitude, loc.Longitude, loc.Region, "ip");
+        if (result is not null)
+        {
+            ApplyWeather(result.Cache);
+            RefreshCityDisplay(result.Cache);
+        }
+        else
+        {
+            RefreshCityDisplay();
+        }
+
+        _tray?.ShowBalloon($"已定位到 {loc.City}");
+    }
+
+    public void SetCalendarWeek() => SetCalendarMode(CalendarViewMode.Week);
+
+    public void SetCalendarMonth() => SetCalendarMode(CalendarViewMode.Month);
+
+    public void ResetCalendarToday()
+    {
+        _calendarAnchor = DateTime.Today;
+        _calendarPreviewDate = null;
+        SaveCalendarState();
+        RefreshClock();
+    }
+
+    public void JumpToCalendarDate()
+    {
+        var text = InputPrompt.Show("跳转日期", "输入日期 (yyyy-MM-dd)：", DateTime.Today.ToString("yyyy-MM-dd"));
+        if (!DateTime.TryParse(text, out var date))
+        {
+            return;
+        }
+
+        _calendarAnchor = date;
+        _calendarPreviewDate = date;
+        SaveCalendarState();
+        RefreshClock();
+        Show();
+        Activate();
+    }
+
+    private void SetCalendarMode(CalendarViewMode mode)
+    {
+        _calendarMode = mode;
+        SaveCalendarState();
+        RefreshCalendar();
+        _tray?.RefreshMenu();
+    }
+
+    private void CalPrev_Click(object sender, RoutedEventArgs e)
+    {
+        _calendarAnchor = _calendarMode == CalendarViewMode.Month
+            ? _calendarAnchor.AddMonths(-1)
+            : _calendarAnchor.AddDays(-7);
+        SaveCalendarState();
+        RefreshCalendar();
+    }
+
+    private void CalNext_Click(object sender, RoutedEventArgs e)
+    {
+        _calendarAnchor = _calendarMode == CalendarViewMode.Month
+            ? _calendarAnchor.AddMonths(1)
+            : _calendarAnchor.AddDays(7);
+        SaveCalendarState();
+        RefreshCalendar();
+    }
+
+    private void CalWeekMode_Click(object sender, RoutedEventArgs e) => SetCalendarMode(CalendarViewMode.Week);
+
+    private void CalMonthMode_Click(object sender, RoutedEventArgs e) => SetCalendarMode(CalendarViewMode.Month);
+
+    private void CalToday_Click(object sender, RoutedEventArgs e) => ResetCalendarToday();
+
+    private void CalJump_Click(object sender, RoutedEventArgs e) => JumpToCalendarDate();
 
     private void SetCity()
     {
@@ -602,6 +811,8 @@ public partial class MainWindow : Window
         }
 
         _settings.City = city.Trim();
+        _settings.ResolvedCityName = city.Trim();
+        _settings.ResolvedRegion = null;
         _settings.WeatherLatitude = null;
         _settings.WeatherLongitude = null;
         JsonStore.SaveSettings(_settings);

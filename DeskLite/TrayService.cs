@@ -21,8 +21,13 @@ public sealed class TrayService : IDisposable
     private readonly Action _onToggleTopmost;
     private readonly Action _onToggleAutoStart;
     private readonly Action _onSetCity;
+    private readonly Action _onDetectLocation;
     private readonly Action _onToggleWeather;
     private readonly Action _onToggleWeekStrip;
+    private readonly Action _onSetCalendarWeek;
+    private readonly Action _onSetCalendarMonth;
+    private readonly Action _onJumpCalendarDate;
+    private readonly Action _onResetCalendarToday;
     private readonly Action<string> _onToggleModule;
     private readonly Action _onAddCountdown;
     private readonly Action _onExportBackup;
@@ -38,8 +43,13 @@ public sealed class TrayService : IDisposable
         Action onToggleTopmost,
         Action onToggleAutoStart,
         Action onSetCity,
+        Action onDetectLocation,
         Action onToggleWeather,
         Action onToggleWeekStrip,
+        Action onSetCalendarWeek,
+        Action onSetCalendarMonth,
+        Action onJumpCalendarDate,
+        Action onResetCalendarToday,
         Action<string> onToggleModule,
         Action onAddCountdown,
         Action onExportBackup,
@@ -54,8 +64,13 @@ public sealed class TrayService : IDisposable
         _onToggleTopmost = onToggleTopmost;
         _onToggleAutoStart = onToggleAutoStart;
         _onSetCity = onSetCity;
+        _onDetectLocation = onDetectLocation;
         _onToggleWeather = onToggleWeather;
         _onToggleWeekStrip = onToggleWeekStrip;
+        _onSetCalendarWeek = onSetCalendarWeek;
+        _onSetCalendarMonth = onSetCalendarMonth;
+        _onJumpCalendarDate = onJumpCalendarDate;
+        _onResetCalendarToday = onResetCalendarToday;
         _onToggleModule = onToggleModule;
         _onAddCountdown = onAddCountdown;
         _onExportBackup = onExportBackup;
@@ -84,8 +99,11 @@ public sealed class TrayService : IDisposable
         menu.Items.Add(CreateCheckItem("开机自启", _settings.AutoStart, _onToggleAutoStart));
         menu.Items.Add(CreateCheckItem("鼠标穿透", _settings.ClickThrough, _onToggleClickThrough));
         menu.Items.Add(CreateCheckItem("显示天气", _settings.ShowWeather, _onToggleWeather));
-        menu.Items.Add(CreateCheckItem("显示周历", _settings.ShowWeekStrip, _onToggleWeekStrip));
+        menu.Items.Add(CreateCheckItem("显示城市", _settings.ShowCityName, () => _onToggleModule("cityName")));
+        menu.Items.Add(CreateCheckItem("显示日历", _settings.ShowWeekStrip, _onToggleWeekStrip));
         menu.Items.Add("设置城市...", null, (_, _) => _onSetCity());
+        menu.Items.Add("定位当前城市", null, (_, _) => _onDetectLocation());
+        menu.Items.Add(BuildCalendarMenu());
         menu.Items.Add(BuildModuleMenu());
         menu.Items.Add("添加倒数日...", null, (_, _) => _onAddCountdown());
         menu.Items.Add("导出数据备份", null, (_, _) => _onExportBackup());
@@ -93,6 +111,18 @@ public sealed class TrayService : IDisposable
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("退出", null, (_, _) => _onExit());
         _icon.ContextMenuStrip = menu;
+    }
+
+    private ToolStripMenuItem BuildCalendarMenu()
+    {
+        var calendar = new ToolStripMenuItem("日历");
+        var isWeek = CalendarViewHelper.ParseMode(_settings.CalendarMode) == CalendarViewMode.Week;
+        calendar.DropDownItems.Add(CreateRadioItem("周历视图", isWeek, _onSetCalendarWeek));
+        calendar.DropDownItems.Add(CreateRadioItem("月历视图", !isWeek, _onSetCalendarMonth));
+        calendar.DropDownItems.Add(new ToolStripSeparator());
+        calendar.DropDownItems.Add("回到今天", null, (_, _) => _onResetCalendarToday());
+        calendar.DropDownItems.Add("跳转日期...", null, (_, _) => _onJumpCalendarDate());
+        return calendar;
     }
 
     private ToolStripMenuItem BuildModuleMenu()
