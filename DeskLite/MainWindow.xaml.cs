@@ -70,6 +70,7 @@ public partial class MainWindow : Window
         _tray = new TrayService(
             this,
             _settings,
+            OpenSettings,
             PromptAddTodo,
             ToggleTopmost,
             ToggleAutoStart,
@@ -811,6 +812,150 @@ public partial class MainWindow : Window
         RefreshCalendar();
         JsonStore.SaveSettings(_settings);
         _tray?.RefreshMenu();
+    }
+
+    public void OpenSettings()
+    {
+        var dlg = new SettingsWindow(_settings);
+        dlg.Owner = this;
+        if (dlg.ShowDialog() == true && dlg.Result is not null)
+        {
+            CommitSettings(dlg.Result);
+        }
+    }
+
+    private void OpenSettings_Click(object sender, RoutedEventArgs e) => OpenSettings();
+
+    private void CommitSettings(AppSettings next)
+    {
+        var prevAutoStart = _settings.AutoStart;
+        var prevClickThrough = _settings.ClickThrough;
+        var prevHotkey = _settings.EnableGlobalHotkey;
+        var prevShowWeather = _settings.ShowWeather;
+        var prevShowSeconds = _settings.ShowSeconds;
+        var prevCity = _settings.City;
+        var prevAutoLocate = _settings.AutoLocateCity;
+        var prevSunrise = _settings.ShowSunriseSunset;
+        var prevTomorrow = _settings.ShowTomorrowWeather;
+
+        var left = _settings.Left;
+        var top = _settings.Top;
+        var lastAutoLocate = _settings.LastAutoLocateAt;
+        var lat = _settings.WeatherLatitude;
+        var lon = _settings.WeatherLongitude;
+        var resolvedCity = _settings.ResolvedCityName;
+        var resolvedRegion = _settings.ResolvedRegion;
+
+        _settings.Time24h = next.Time24h;
+        _settings.ShowSeconds = next.ShowSeconds;
+        _settings.AlwaysOnTop = next.AlwaysOnTop;
+        _settings.AutoStart = next.AutoStart;
+        _settings.ClickThrough = next.ClickThrough;
+        _settings.ShowWeather = next.ShowWeather;
+        _settings.ShowCityName = next.ShowCityName;
+        _settings.AutoLocateCity = next.AutoLocateCity;
+        _settings.ShowWeekStrip = next.ShowWeekStrip;
+        _settings.ShowYearProgress = next.ShowYearProgress;
+        _settings.ShowCountdown = next.ShowCountdown;
+        _settings.ShowDailyQuote = next.ShowDailyQuote;
+        _settings.ShowSunriseSunset = next.ShowSunriseSunset;
+        _settings.ShowTomorrowWeather = next.ShowTomorrowWeather;
+        _settings.ShowScratch = next.ShowScratch;
+        _settings.ShowTodoReminder = next.ShowTodoReminder;
+        _settings.EnableGlobalHotkey = next.EnableGlobalHotkey;
+        _settings.Theme = next.Theme;
+        _settings.Opacity = next.Opacity;
+        _settings.City = next.City;
+        _settings.CalendarMode = next.CalendarMode;
+        _settings.Left = left;
+        _settings.Top = top;
+
+        var cityChanged = !string.Equals(prevCity, next.City, StringComparison.Ordinal);
+        var autoLocateChanged = prevAutoLocate != next.AutoLocateCity;
+
+        if (next.AutoLocateCity && autoLocateChanged)
+        {
+            // Re-detect on save.
+        }
+        else if (!next.AutoLocateCity && (cityChanged || autoLocateChanged))
+        {
+            _settings.ResolvedCityName = next.City;
+            _settings.ResolvedRegion = null;
+            _settings.WeatherLatitude = null;
+            _settings.WeatherLongitude = null;
+        }
+        else
+        {
+            _settings.ResolvedCityName = resolvedCity;
+            _settings.ResolvedRegion = resolvedRegion;
+            _settings.WeatherLatitude = lat;
+            _settings.WeatherLongitude = lon;
+            _settings.LastAutoLocateAt = lastAutoLocate;
+        }
+
+        if (_settings.AutoStart != prevAutoStart)
+        {
+            AutoStartService.SetEnabled(_settings.AutoStart);
+        }
+
+        if (_settings.ClickThrough != prevClickThrough)
+        {
+            WindowHelper.SetClickThrough(this, _settings.ClickThrough);
+            if (_settings.ClickThrough)
+            {
+                _tray?.ShowBalloon("已开启鼠标穿透，窗口无法拖动。请在设置中关闭。");
+            }
+        }
+
+        if (_settings.EnableGlobalHotkey != prevHotkey)
+        {
+            if (_settings.EnableGlobalHotkey)
+            {
+                _hotkeyService ??= new GlobalHotkeyService(this, ToggleWindow, QuickAddTodo);
+                _hotkeyService.Register();
+            }
+            else
+            {
+                _hotkeyService?.Unregister();
+            }
+        }
+
+        _calendarMode = CalendarViewHelper.ParseMode(_settings.CalendarMode);
+
+        ApplySettings();
+        RefreshExtras();
+        RefreshClock();
+        if (_settings.ShowSeconds != prevShowSeconds)
+        {
+            ApplyClockTimerInterval();
+        }
+
+        RefreshCalendar();
+        JsonStore.SaveSettings(_settings);
+        _tray?.RefreshMenu();
+
+        var needWeatherRefresh = _settings.ShowWeather && (
+            !prevShowWeather ||
+            cityChanged ||
+            autoLocateChanged ||
+            prevSunrise != _settings.ShowSunriseSunset ||
+            prevTomorrow != _settings.ShowTomorrowWeather);
+
+        if (needWeatherRefresh)
+        {
+            if (_settings.AutoLocateCity && (autoLocateChanged || cityChanged))
+            {
+                _ = AutoLocateCityAsync(notify: false);
+            }
+            else
+            {
+                _ = RefreshWeatherAsync();
+            }
+        }
+        else if (!_settings.ShowWeather)
+        {
+            RefreshCityDisplay(_weatherService.LoadCache());
+        }
     }
 
     public void DetectLocationByIp() => _ = AutoLocateCityAsync(notify: true);

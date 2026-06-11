@@ -23,6 +23,8 @@
             Padding="14">
         <Border.ContextMenu>
             <ContextMenu>
+                <MenuItem Header="设置..." Click="OpenSettings_Click" />
+                <Separator />
                 <MenuItem Header="深色主题" Click="ThemeDark_Click" />
                 <MenuItem Header="浅色主题" Click="ThemeLight_Click" />
                 <Separator />

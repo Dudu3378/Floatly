@@ -17,6 +17,7 @@ public sealed class TrayService : IDisposable
     private readonly NotifyIcon _icon;
     private readonly MainWindow _window;
     private readonly AppSettings _settings;
+    private readonly Action _onOpenSettings;
     private readonly Action _onAddTodo;
     private readonly Action _onToggleTopmost;
     private readonly Action _onToggleAutoStart;
@@ -39,6 +40,7 @@ public sealed class TrayService : IDisposable
     public TrayService(
         MainWindow window,
         AppSettings settings,
+        Action onOpenSettings,
         Action onAddTodo,
         Action onToggleTopmost,
         Action onToggleAutoStart,
@@ -60,6 +62,7 @@ public sealed class TrayService : IDisposable
     {
         _window = window;
         _settings = settings;
+        _onOpenSettings = onOpenSettings;
         _onAddTodo = onAddTodo;
         _onToggleTopmost = onToggleTopmost;
         _onToggleAutoStart = onToggleAutoStart;
@@ -94,6 +97,8 @@ public sealed class TrayService : IDisposable
     {
         var menu = new ContextMenuStrip();
         menu.Items.Add("显示/隐藏", null, (_, _) => ToggleWindow());
+        menu.Items.Add("设置...", null, (_, _) => _onOpenSettings());
+        menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("添加待办", null, (_, _) => _onAddTodo());
         menu.Items.Add("切换置顶", null, (_, _) => _onToggleTopmost());
         menu.Items.Add(CreateCheckItem("开机自启", _settings.AutoStart, _onToggleAutoStart));
