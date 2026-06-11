@@ -40,6 +40,59 @@ public static class FontScaleHelper
         window.CalNextBtn.FontSize = 14 * scale;
         window.CalWeekModeBtn.FontSize = 10 * scale;
         window.CalMonthModeBtn.FontSize = 10 * scale;
+
+        ApplyHuangLi(window, scale);
+    }
+
+    public static double ScaledSize(double baseSize, double scale) => baseSize * ClampScale(scale);
+
+    private static void ApplyHuangLi(MainWindow window, double scale)
+    {
+        Set(window.HuangLiSolarDate, 12, scale);
+        Set(window.HuangLiLunarLarge, 24, scale);
+        window.HuangLiPrevBtn.FontSize = 20 * scale;
+        window.HuangLiNextBtn.FontSize = 20 * scale;
+        Set(window.HuangLiMetaLine, 12, scale);
+        Set(window.HuangLiYiCircleText, 10, scale);
+        Set(window.HuangLiJiCircleText, 10, scale);
+        Set(window.HuangLiYiText, 12, scale);
+        Set(window.HuangLiJiText, 12, scale);
+        Set(window.HuangLiWuXingLabel, 10, scale);
+        Set(window.HuangLiWuXingVal, 11, scale);
+        Set(window.HuangLiChongLabel, 10, scale);
+        Set(window.HuangLiChongVal, 11, scale);
+        Set(window.HuangLiZhiLabel, 10, scale);
+        Set(window.HuangLiZhiVal, 11, scale);
+        Set(window.HuangLiTimeTitle, 10, scale);
+        Set(window.HuangLiJianLabel, 10, scale);
+        Set(window.HuangLiJianVal, 11, scale);
+        Set(window.HuangLiJiShenLabel, 10, scale);
+        Set(window.HuangLiJiShenVal, 10, scale);
+        Set(window.HuangLiTaiShenLabel, 10, scale);
+        Set(window.HuangLiTaiShenVal, 10, scale);
+        Set(window.HuangLiXiongLabel, 10, scale);
+        Set(window.HuangLiXiongVal, 10, scale);
+        Set(window.HuangLiPengZuLabel, 10, scale);
+        Set(window.HuangLiPengZuVal, 10, scale);
+        Set(window.HuangLiXiuLabel, 10, scale);
+        Set(window.HuangLiXiuVal, 10, scale);
+        Set(window.HuangLiCurrentTitle, 12, scale);
+        Set(window.HuangLiCurrentZhi, 20, scale);
+        Set(window.HuangLiCurrentSummary, 12, scale);
+        Set(window.HuangLiCurrentDirections, 10, scale);
+        Set(window.HuangLiCurrentLuckText, 10, scale);
+        Set(window.HuangLiCurrentYiCircleText, 9, scale);
+        Set(window.HuangLiCurrentJiCircleText, 9, scale);
+        Set(window.HuangLiCurrentYiText, 11, scale);
+        Set(window.HuangLiCurrentJiText, 11, scale);
+        Set(window.HuangLiMoreText, 11, scale);
+
+        window.HuangLiYiCircle.Width = window.HuangLiYiCircle.Height = 18 * scale;
+        window.HuangLiJiCircle.Width = window.HuangLiJiCircle.Height = 18 * scale;
+        window.HuangLiCurrentYiCircle.Width = window.HuangLiCurrentYiCircle.Height = 16 * scale;
+        window.HuangLiCurrentJiCircle.Width = window.HuangLiCurrentJiCircle.Height = 16 * scale;
+        window.HuangLiCurrentZhiCircle.Width = window.HuangLiCurrentZhiCircle.Height = 40 * scale;
+        window.HuangLiCurrentLuckBadge.Width = window.HuangLiCurrentLuckBadge.Height = 20 * scale;
     }
 
     private static void Set(DependencyObject element, double baseSize, double scale)

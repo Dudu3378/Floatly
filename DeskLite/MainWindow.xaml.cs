@@ -146,6 +146,38 @@ public partial class MainWindow : Window
         }
 
         FontScaleHelper.Apply(this, _settings.FontScale);
+        if (_settings.ShowHuangLi)
+        {
+            var displayDate = _calendarPreviewDate ?? DateTime.Today;
+            PopulateHuangLiTimeStrip(
+                HuangLiService.Get(displayDate, includeCurrentTime: _calendarPreviewDate is null).TimeSlots);
+        }
+
+        ApplyModuleOrder();
+    }
+
+    private void ApplyModuleOrder()
+    {
+        var order = DeskModuleIds.Normalize(_settings.ModuleOrder);
+        var modules = new Dictionary<string, UIElement>
+        {
+            [DeskModuleIds.HuangLi] = HuangLiPanel,
+            [DeskModuleIds.YearProgress] = YearProgressPanel,
+            [DeskModuleIds.Weather] = WeatherPanel,
+            [DeskModuleIds.Countdown] = CountdownPanel,
+            [DeskModuleIds.DailyQuote] = DailyQuoteText,
+            [DeskModuleIds.Scratch] = ScratchBox,
+            [DeskModuleIds.Todos] = TodoPanel
+        };
+
+        ModuleContentPanel.Children.Clear();
+        foreach (var id in order)
+        {
+            if (modules.TryGetValue(id, out var element))
+            {
+                ModuleContentPanel.Children.Add(element);
+            }
+        }
     }
 
     private void LoadCalendarState()
@@ -425,6 +457,7 @@ public partial class MainWindow : Window
         HuangLiChongLabel.Foreground = Brush(_palette.HuangLiLabel);
         HuangLiZhiLabel.Foreground = Brush(_palette.HuangLiLabel);
         HuangLiJianLabel.Foreground = Brush(_palette.HuangLiLabel);
+        HuangLiJiShenLabel.Foreground = Brush(_palette.HuangLiLabel);
         HuangLiTaiShenLabel.Foreground = Brush(_palette.HuangLiLabel);
         HuangLiPengZuLabel.Foreground = Brush(_palette.HuangLiLabel);
         HuangLiXiuLabel.Foreground = Brush(_palette.HuangLiLabel);
@@ -463,6 +496,7 @@ public partial class MainWindow : Window
 
     private void PopulateHuangLiTimeStrip(IReadOnlyList<HuangLiTimeSlot> slots)
     {
+        var scale = _settings.FontScale;
         HuangLiTimeStrip.Children.Clear();
         foreach (var slot in slots.Take(12))
         {
@@ -486,14 +520,14 @@ public partial class MainWindow : Window
                         new TextBlock
                         {
                             Text = slot.GanZhi,
-                            FontSize = 7,
+                            FontSize = FontScaleHelper.ScaledSize(10, scale),
                             Foreground = Brush(_palette.TextSecondary),
                             HorizontalAlignment = System.Windows.HorizontalAlignment.Center
                         },
                         new TextBlock
                         {
                             Text = slot.Luck,
-                            FontSize = 7,
+                            FontSize = FontScaleHelper.ScaledSize(11, scale),
                             Foreground = luckBrush,
                             HorizontalAlignment = System.Windows.HorizontalAlignment.Center
                         }
@@ -512,7 +546,7 @@ public partial class MainWindow : Window
         }
 
         const double headerHeight = 72;
-        var scrollBody = _settings.ShowHuangLi ? 430 : 240;
+        var scrollBody = _settings.ShowHuangLi ? 460 : 240;
         const double todoInput = 40;
         const double chrome = 28;
 
@@ -1169,6 +1203,7 @@ public partial class MainWindow : Window
         _settings.ShowTomorrowWeather = next.ShowTomorrowWeather;
         _settings.ShowScratch = next.ShowScratch;
         _settings.ShowTodoReminder = next.ShowTodoReminder;
+        _settings.ModuleOrder = DeskModuleIds.Normalize(next.ModuleOrder);
         _settings.EnableGlobalHotkey = next.EnableGlobalHotkey;
         _settings.Theme = next.Theme;
         _settings.Opacity = next.Opacity;
