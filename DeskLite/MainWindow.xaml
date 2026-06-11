@@ -60,13 +60,11 @@
                 </StackPanel>
             </Border>
 
-            <ScrollViewer x:Name="MainScrollViewer" Grid.Row="1" VerticalScrollBarVisibility="Auto"
+            <ScrollViewer x:Name="MainScrollViewer" Grid.Row="1" VerticalScrollBarVisibility="Hidden"
                           HorizontalScrollBarVisibility="Disabled" Margin="0,0,0,6">
                 <StackPanel>
                     <Border x:Name="HuangLiPanel" Background="#FF222830" CornerRadius="8" Padding="8,6" Margin="0,0,0,8"
                             ClipToBounds="True" Visibility="Collapsed">
-                        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
-                                      MaxHeight="260" ClipToBounds="True">
                         <StackPanel>
                             <Grid Margin="0,0,0,4">
                                 <Grid.ColumnDefinitions>
@@ -158,7 +156,6 @@
                             <TextBlock x:Name="HuangLiSecondaryText" FontSize="9" Foreground="#6B7280" TextWrapping="Wrap" Margin="0,0,0,2" />
                             <TextBlock x:Name="HuangLiCurrentTimeText" FontSize="9" Foreground="#3B82F6" TextWrapping="Wrap" Visibility="Collapsed" />
                         </StackPanel>
-                        </ScrollViewer>
                     </Border>
 
                     <StackPanel x:Name="YearProgressPanel" Margin="0,0,0,8" Visibility="Collapsed">
