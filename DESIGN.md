@@ -142,7 +142,7 @@
 | **日出 / 日落** | `日出 04:51 · 日落 19:32` | 低 | Open-Meteo 同一请求顺带返回，不增加 API |
 | **月相** | `🌔 盈凸月` | 低 | 本地天文算法，一行图标+文字 |
 | **每日一句** | `行胜于言。` | 低 | 内置 100～300 条本地语录，按日期种子随机，**完全离线** |
-| **速记便签** | 一行可编辑文字 | 低 | `scratch` 字段写入 JSON，适合临时手机号、会议号 |
+| **速记便签** | 多条便签 + 编辑窗口 | 低 | 最多 20 条，置顶/颜色/搜索；原单行 `scratch` 已迁移 |
 | **置顶待办** | ⭐ 标记 1 条 | 低 | 今日清单内最多置顶 1 条，始终显示在最上 |
 
 ### B 类 — 很实用（略增交互，仍可控）
@@ -150,7 +150,7 @@
 | 模块 | 展示示例 | 实现成本 | 说明 |
 |------|----------|----------|------|
 | **习惯打卡** | `喝水 ●○○  早睡 ●●○` | 中 | 用户定义 ≤5 个习惯，每日点一下；零点自动重置 |
-| **番茄钟** | `专注 18:32 ▶` | 中 | 25/5 默认，托盘显示倒计时；**不另开窗口**，折叠区展开才操作 |
+| **番茄钟** | `专注 18:32 ▶` | 中 | 25/5 默认，支持长休息；主面板进度条 + 托盘提醒（**已实现**） |
 | **护眼提醒** | 每 20 分钟托盘提示 | 低 | 20-20-20 规则；仅 Toast + 可选弱提示音，**不抢焦点** |
 | **快捷启动** | 4 个图标/文字按钮 | 中 | 用户拖入 exe/文件夹/网址，一键打开；数据存 JSON 路径 |
 | **第二时区** | `东京 15:32` | 低 | 仅 **1 个**副时钟，与主时钟共用分钟 tick |
@@ -319,34 +319,35 @@
 ### 4.2 项目结构（单项目，当前）
 
 ```
-DeskLite/
+DeskLite/                      # 源码目录（产物 AssemblyName = Floatly）
 ├── App.xaml / App.xaml.cs
 ├── MainWindow.xaml(.cs)       # 主面板
-├── SettingsWindow.xaml(.cs)   # 设置窗口
-├── TodoListWindow.xaml(.cs)   # 全部待办（已实现：托盘 + 主面板入口）
+├── SettingsWindow.xaml(.cs)   # 设置窗口（五栏 Tab）
+├── TodoListWindow.xaml(.cs)   # 全部待办
+├── ScratchPadWindow.xaml(.cs) # 多便签编辑
 ├── TrayService.cs             # 系统托盘
-├── InputPrompt.cs
+├── DateNoteDialog.cs
 ├── Models/
 │   ├── AppSettings.cs         # settings.json
-│   ├── AppDataFile.cs         # data.json 根
-│   ├── TodoItem.cs / TodoDisplayItem.cs
-│   ├── CountdownItem.cs
-│   ├── WeatherCache.cs
+│   ├── AppDataFile.cs         # data.json 根（含 DateNotes、Notes）
+│   ├── TodoItem.cs / ScratchNote.cs / CountdownItem.cs
 │   └── DeskModuleIds.cs       # 模块 ID 与默认顺序
 └── Services/
-    ├── JsonStore.cs
+    ├── JsonStore.cs / AppConstants.cs
     ├── LunarCalendar.cs / HuangLiService.cs
     ├── WeatherService.cs / LocationService.cs
-    ├── TodoStore.cs / TodoReminderService.cs
-    ├── CountdownService.cs / YearProgressService.cs
-    ├── DailyQuoteService.cs / HolidayService.cs
-    ├── CalendarViewHelper.cs
-    ├── AppTheme.cs / FontScaleHelper.cs / WindowHelper.cs
-    ├── GlobalHotkeyService.cs / AutoStartService.cs
-    └── AppIconService.cs
+    ├── TodoStore.cs / TodoReminderService.cs / DateNoteStore.cs
+    ├── PomodoroService.cs / OffWorkService.cs / SalaryHelperService.cs
+    ├── CountdownService.cs / YearProgressService.cs / DailyQuoteService.cs
+    ├── SkinService.cs / HolidayService.cs / CalendarViewHelper.cs
+    ├── AppTheme.cs / FontScaleHelper.cs / FontFamilyHelper.cs / FontColorHelper.cs
+    ├── GlobalHotkeyService.cs / HotkeyComboHelper.cs
+    └── WindowHelper.cs / AutoStartService.cs / AppIconService.cs
+installer/
+└── Floatly.iss                # Inno Setup 中文安装包
 ```
 
-当前约 **30+ 源文件**（仍单项目单 exe）。未实现项（习惯、番茄钟等）**未提前建空壳**。
+当前约 **60 源文件**（仍单项目单 exe，`Floatly.exe`）。未实现项（习惯、护眼等）**未提前建空壳**。
 
 ### 4.3 数据模型（最小）
 
@@ -398,7 +399,7 @@ DeskLite/
 
 ## 6. 路线图与实现状态
 
-> **审计日期**：2026-06-11 · 对照 `DeskLite/` 源码与 git 历史
+> **审计日期**：2026-06-11 · 对照 `DeskLite/` 源码与 git 历史（产物名 **Floatly**）
 
 ### 6.1 功能对照表
 
@@ -407,18 +408,18 @@ DeskLite/
 | WPF 透明窗口 + 拖拽 | Phase 1 | ✅ 已完成 | 无边框、`AllowsTransparency` |
 | 时间 + 公历 | Phase 1 | ✅ 已完成 | 可选显示秒 |
 | 农历一行 | Phase 1 轻量 | ✅ 已完成 | 黄历关闭时显示简洁农历行 |
-| 今日待办 JSON | Phase 1 | ✅ 已完成 | 增删勾、可选时间 |
+| 今日待办 JSON | Phase 1 | ✅ 已完成 | 增删勾、可选时间、圆形复选框 |
 | 托盘显示/隐藏/退出 | Phase 1 | ✅ 已完成 | 双击托盘切换 |
 | 天气 Open-Meteo | Phase 2 | ✅ 已完成 | 60 分钟刷新 + 缓存 |
-| 迷你周历 | Phase 2 | ✅ 已完成 | 扩展：月历、翻页、跳转 |
+| 迷你周历 | Phase 2 | ✅ 已完成 | 扩展：月历、翻页、跳转、**日期备注** |
 | 置顶 / 穿透 / 自启 | Phase 2 | ✅ 已完成 | 设置窗口 + 右键菜单 |
-| 框架依赖发布 + README | Phase 2 | ✅ 已完成 | |
+| 框架依赖发布 + README | Phase 2 | ✅ 已完成 | exe 名 `Floatly.exe` |
 | 倒数日 + 内置节日 | Phase 3 批 1 | ✅ 已完成 | 自定义事件 + 进度条 |
 | 待办到时 Toast | Phase 3 批 1 | ✅ 已完成 | |
 | 每日一句 | Phase 3 批 1 | ✅ 已完成 | 离线语录 |
 | 日出 / 日落 | Phase 3 批 1 | ✅ 已完成 | 同天气 API |
 | 年进度 | Phase 3 批 1 | ✅ 已完成 | 仅年进度，**无**周进度/距周末 |
-| 速记便签 | Phase 3 批 1 | ✅ 已完成 | |
+| 速记便签 | Phase 3 批 1 | ✅ 已完成 | **扩展**：多便签 `ScratchPadWindow`，最多 20 条 |
 | 模块开关 | Phase 3 批 1 | ✅ 已完成 | **设置窗口**勾选，非仅托盘 |
 | 置顶待办 | 扩展 A 类 | ✅ 已完成 | 主面板 ★ 按钮 + 查看全部窗口 |
 | 节假日休/班 | Phase 3 批 2 | ✅ 已完成 | **仅 2026** 离线表 |
@@ -427,13 +428,19 @@ DeskLite/
 | 透明度 / 字号 | 扩展 C 类 | ✅ 已完成 | 设置滑块：30–100%、10–16 pt |
 | 四边缩放 | — | ✅ 已完成 | `WindowHelper.EnableBorderlessResize` |
 | 模块显示顺序 | — | ✅ 已完成 | 设置 → 模块 → 上移/下移 |
-| 黄历详情（宜忌等） | 原设计不做 | ✅ 已完成 | **偏离**：51wnl 风格大面板，可关 |
+| 黄历详情（宜忌等） | 原设计不做 | ✅ 已完成 | **偏离**：51wnl 风格大面板，可折叠 |
 | 设置窗口 | 原设计不做 | ✅ 已完成 | **偏离**：五栏 Tab 集中配置 |
 | 深/浅色主题 | — | ✅ 已完成 | |
 | 自动定位城市 | — | ✅ 已完成 | 启动 + 24h |
-| 全局快捷键 | 扩展 C 类 | ✅ 已完成 | Ctrl+Shift+D / N |
+| 全局快捷键 | 扩展 C 类 | ✅ 已完成 | **可自定义**组合键（默认 D / N） |
+| 产品更名 Floatly | — | ✅ 已完成 | `48784d4`；DeskLite 数据自动迁移 |
+| 番茄钟 | Phase 3 批 2 | ✅ 已完成 | `PomodoroService`：工作/短休/长休 + 托盘提醒 |
+| 下班倒计时 | — | ✅ 已完成 | `OffWorkService`：上下班、工作日、日进度 |
+| 摸鱼小助手 | — | ✅ 已完成 | `SalaryHelperService`：月薪、每秒/时薪、金色显示 |
+| 自定义皮肤 | — | ✅ 已完成 | 默认/纯色/图片；**视频背景** `SkinService` |
+| 自定义字体/颜色 | — | ✅ 已完成 | 字体族、字号 pt、十六进制主色 |
+| 中文安装包 | — | ✅ 已完成 | Inno Setup `Floatly-Setup-1.0.1.exe` |
 | 习惯打卡 | Phase 3 批 2 | ❌ 未实现 | |
-| 番茄钟 | Phase 3 批 2 | ❌ 未实现 | |
 | 快捷启动 | Phase 3 批 2 | ❌ 未实现 | |
 | 数据导入 | Phase 3 批 2 | ❌ 未实现 | |
 | 贴边收纳 | Phase 3 批 3 | ❌ 未实现 | |
@@ -444,10 +451,12 @@ DeskLite/
 
 ### 6.2 与原设计的主要偏离
 
-1. **黄历详情**：轻量版原砍掉宜忌；现默认展示完整黄历面板（`lunar-csharp` + `HuangLiService`），可关闭回简洁农历行。
-2. **设置入口**：由「托盘为主、无设置页」改为 **SettingsWindow** + 精简托盘；外观（透明度/字号 pt）、模块顺序均在此配置。
-3. **日历能力**：超出「迷你周历」，支持月历、锚点翻页、托盘跳转日期。
-4. **文件规模**：约 30+ 源文件，略超原「25 文件」软上限，仍保持单项目。
+1. **黄历详情**：轻量版原砍掉宜忌；现默认展示完整黄历面板（`lunar-csharp` + `HuangLiService`），可折叠，可关闭回简洁农历行。
+2. **设置入口**：由「托盘为主、无设置页」改为 **SettingsWindow** + 精简托盘；外观（皮肤/字体/颜色/透明度/字号）、模块顺序均在此配置。
+3. **日历能力**：超出「迷你周历」，支持月历、锚点翻页、托盘跳转日期、**日期备注**（`DateNoteStore`）。
+4. **速记便签**：由单行 scratch 扩展为多便签编辑器（`ScratchPadWindow`）。
+5. **产品名**：由 DeskLite 更名为 **Floatly（浮岛）**；源码目录仍为 `DeskLite/`，数据目录 `%AppData%\Floatly\`。
+6. **文件规模**：约 60 源文件，仍保持单项目单 exe。
 
 ### 6.3 Phase 勾选（路线图）
 
@@ -480,11 +489,22 @@ DeskLite/
 **第二批**
 
 - [ ] 习惯打卡（≤5 个）
-- [ ] 番茄钟（折叠区）
+- [x] 番茄钟（`PomodoroService`，主面板 + 托盘提醒）
 - [x] 节假日 `休/班` 年度包（2026）
 - [x] 查看全部待办小窗 + 搜索 + 历史已完成（`4782b09`）
 - [ ] 快捷启动（4 格）
-- [ ] 数据导出 / 导入（仅导出）
+- [x] 数据导出（托盘备份）；[ ] 数据导入
+
+**v1.0.1 附加（批 2 与批 3 之间）**
+
+- [x] Floatly 更名 + DeskLite 数据迁移
+- [x] 下班倒计时（`OffWorkService`）
+- [x] 摸鱼小助手 / 实时收入（`SalaryHelperService`）
+- [x] 多便签速记 + `ScratchPadWindow`
+- [x] 日期备注（`DateNoteStore`）
+- [x] 皮肤：图片 + 视频背景（`SkinService`）
+- [x] 自定义热键、字体、字号、字体颜色
+- [x] 中文 Inno Setup 安装包
 
 **第三批**
 
@@ -532,9 +552,11 @@ DeskLite/
 
 1. ~~Phase 1 / 2~~（已完成）
 2. ~~Phase 3 第一批~~（已完成）
-3. **近期优先**：数据导入、2027+ 节假日数据
-4. **第二批按需**：习惯打卡、番茄钟、快捷启动
-5. **体验项**：贴边收纳、自包含打包
+3. ~~番茄钟、下班倒计时、摸鱼小助手、多便签、皮肤视频~~（v1.0.1 已完成）
+4. **近期优先**：数据导入、2027+ 节假日数据
+5. **第二批按需**：习惯打卡、快捷启动、护眼提醒
+6. **体验项**：贴边收纳、自包含打包、第二时区/月相/电量
+7. **发布规范**：GitHub Release 说明统一中文，模板见 `docs/RELEASE_NOTES_zh.md`
 
 ---
 
@@ -551,7 +573,7 @@ DeskLite/
 | A5 | 每日一句 | ✅ |
 | A6 | 速记便签 | ✅ |
 | B1 | 习惯打卡 | ❌ |
-| B2 | 番茄钟 | ❌ |
+| B2 | 番茄钟 | ✅ |
 | B3 | 护眼提醒 | ❌ |
 | B4 | 快捷启动 | ❌ |
 | B5 | 节假日休/班标注 | ✅（2026） |
@@ -563,4 +585,4 @@ DeskLite/
 
 ---
 
-*文档版本：v0.4-implemented · 更新：2026-06-11（实现审计同步）*
+*文档版本：v0.5-floatly · 更新：2026-06-11（Floatly v1.0.1 实现审计同步）*

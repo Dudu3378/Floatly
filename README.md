@@ -5,15 +5,16 @@
   
   ### 🪶 轻量级 Windows 桌面小组件
   
-  常驻桌面的一小块「今日信息条」：时钟、农历、黄历、天气、待办、倒数日  
-  不占地方 · 低资源占用 · 简洁优雅
+  常驻桌面的一小块「今日信息条」：时钟、黄历、天气、待办、番茄钟、下班倒计时……  
+  不占地方 · 低资源占用 · 简洁优雅 · 数据本地保存
   
   [![.NET](https://img.shields.io/badge/.NET-8.0-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
   [![Platform](https://img.shields.io/badge/Platform-Windows-0078D6?logo=windows)](https://www.microsoft.com/windows)
   [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
   [![WPF](https://img.shields.io/badge/UI-WPF-blue)](https://github.com/dotnet/wpf)
+  [![Release](https://img.shields.io/github/v/release/cass-2003/Floatly?label=release)](https://github.com/cass-2003/Floatly/releases/tag/v1.0.1)
   
-  [快速开始](#-快速开始) · [功能特性](#-核心功能) · [截图预览](#-截图预览) · [路线图](#-路线图)
+  [下载 v1.0.1](https://github.com/cass-2003/Floatly/releases/tag/v1.0.1) · [快速开始](#-快速开始) · [功能特性](#-核心功能) · [路线图](#-路线图)
   
 </div>
 
@@ -25,12 +26,13 @@
 <tr>
 <td width="33%">
 
-### 🕐 时钟与历法
+### 🕐 时钟与黄历
 - 公历 + 农历双历显示
-- 节气、生肖、干支
-- **黄历详情**（51万年历风格）
-- 周历/月历切换
-- **2026年节假日**标注
+- **黄历详情**（51 万年历风格，可折叠）
+- 节气、生肖、干支、宜忌
+- 周历 / 月历切换、翻页
+- **2026 年节假日**休/班标注
+- 日历格 **日期备注**（点击日期添加）
 
 </td>
 <td width="33%">
@@ -46,44 +48,48 @@
 <td width="33%">
 
 ### ✅ 今日清单
-- 卡片式待办列表，计数徽章
+- 卡片式待办，计数徽章
 - 增删勾、编辑、置顶（★）
 - 时间前缀 `14:00 周会` + **到时托盘提醒**
 - **查看全部**窗口（进行中 / 已完成 / 全部 + 搜索）
-- 超过 5 条时「还有 N 条」提示；已完成历史可恢复
-- 全局快捷键 `Ctrl+Shift+N` 快速添加
+- 超过 5 条时「还有 N 条」；已完成可恢复
+- 全局快捷键快速添加（可自定义）
 
 </td>
 </tr>
 </table>
 
-### 🎨 可选模块（自由组合 + 排序）
+### 🎛️ 可选模块（自由组合 + 排序）
+
+在 **设置 → 模块** 中开关，并可用上移/下移调整显示顺序：
 
 | 模块 | 说明 |
 |------|------|
 | 📅 **倒数日** | 内置节日 + 自定义事件，带进度条 |
-| 🍅 **番茄钟** | 25/5 专注计时，进度条 + 托盘提醒 |
+| 🍅 **番茄钟** | 25/5 专注计时（可配置长休息），进度条 + 托盘提醒 |
+| ⏰ **下班倒计时** | 上下班时间、工作日模式、日进度条 |
+| 💰 **摸鱼小助手** | 按月薪实时计算收入，金色每秒跳动显示 |
 | 📊 **年进度** | 全年已过百分比与可视化进度条 |
 | 💬 **每日一句** | 离线语录库，按日随机展示 |
-| 📝 **速记便签** | 多条便签、置顶/颜色标签、搜索与剪贴板导出 |
+| 📝 **速记便签** | 最多 20 条，置顶/颜色标签、搜索、复制、独立编辑窗口 |
 
 ### 🎯 窗口与外观
 
 - ✨ 无边框透明面板，四边/四角调整大小
 - 🌓 深色/浅色主题切换
-- 🎚️ 透明度（30-100%）+ 字号（10-16pt）滑块调节
+- 🎨 **皮肤**：默认 / 纯色 / 自定义图片 / **视频背景**（循环静音）
+- 🔤 自定义 **字体**、**字号**（10–16 pt）、**字体颜色**
+- 🎚️ 透明度（30–100%）滑块调节
 - 📌 窗口置顶 / 鼠标穿透
 - 🚀 开机自启动
-- ⌨️ 全局快捷键：`Ctrl+Shift+D` 显示/隐藏，`Ctrl+Shift+N` 快速添加待办
-- 🖱️ 右键菜单快捷操作
+- ⌨️ **可自定义全局快捷键**（默认 `Ctrl+Shift+D` 显示/隐藏，`Ctrl+Shift+N` 快速添加待办）
+- 🖱️ 右键标题区快捷操作
 
 ---
 
 ## 📸 截图预览
 
 <div align="center">
-  
-  _(开发中，截图待补充)_
   
   | 浅色主题 | 深色主题 |
   |---------|---------|
@@ -101,36 +107,51 @@
 
 ### 环境要求
 
-- Windows 10 / 11
-- [.NET 8 桌面运行时](https://dotnet.microsoft.com/download/dotnet/8.0)
+- Windows 10 / 11（x64）
+- [.NET 8 桌面运行时](https://dotnet.microsoft.com/download/dotnet/8.0)（使用安装包时会检测并提示）
 
-### 运行项目
+### 下载安装（推荐）
+
+从 [Releases v1.0.1](https://github.com/cass-2003/Floatly/releases/tag/v1.0.1) 下载：
+
+| 文件 | 说明 |
+|------|------|
+| `Floatly-Setup-1.0.1.exe` | 中文安装向导（Inno Setup） |
+| `Floatly-1.0.1-win-x64.zip` | 绿色版（需已安装 .NET 8 桌面运行时） |
+
+### 从源码运行
 
 ```powershell
-# 克隆项目
 git clone https://github.com/cass-2003/Floatly.git
 cd Floatly/DeskLite
-
-# 运行开发版
 dotnet run
 ```
 
-### 发布 Release
+### 构建与发布
 
 ```powershell
-# 构建框架依赖版本（约 2-5 MB）
+# 框架依赖发布（约 2–5 MB，需用户安装 .NET 8 桌面运行时）
 cd DeskLite
-dotnet publish -c Release
+dotnet publish -c Release -r win-x64 --self-contained false
 
 # 输出目录
-# DeskLite\bin\Release\net8.0-windows\publish\Floatly.exe
+# DeskLite\bin\Release\net8.0-windows\win-x64\publish\Floatly.exe
+```
+
+**制作安装包**（需 [Inno Setup 6](https://jrsoftware.org/isinfo.php)）：
+
+```powershell
+# 1. 将 publish 输出复制到 release/Floatly/
+# 2. 编译安装脚本
+iscc installer\Floatly.iss
+# 输出：release\Floatly-Setup-1.0.1.exe
 ```
 
 ### 首次使用
 
-1. 启动后图标会出现在系统托盘
+1. 启动后图标出现在系统托盘
 2. 双击托盘图标显示主窗口
-3. 右键托盘图标 → **设置** 进行个性化配置
+3. 右键托盘 → **设置...** 进行个性化配置
 4. 拖拽窗口边缘调整大小，拖拽内容区域移动位置
 
 ---
@@ -144,7 +165,7 @@ dotnet publish -c Release
 **核心框架**
 - 🎯 **.NET 8** + **WPF** 无边框透明窗口
 - 🖥️ **Windows Forms** 系统托盘集成
-- 📦 单项目、单 exe，极简依赖
+- 📦 单项目、单 exe（`Floatly.exe`），极简依赖
 
 </td>
 <td width="50%">
@@ -158,16 +179,19 @@ dotnet publish -c Release
 </tr>
 </table>
 
+> 源码目录仍为 `DeskLite/`（历史命名），编译产物与安装包均为 **Floatly**。
+
 ---
 
 ## 📂 数据存储
 
-应用数据保存在 `%AppData%\Floatly\` 目录：
+应用数据保存在 `%AppData%\Floatly\`：
 
-| 文件 | 说明 |
-|------|------|
-| `settings.json` | 窗口位置、主题、模块开关与顺序、城市等偏好配置 |
-| `data.json` | 待办、倒数日、速记便签等业务数据 |
+| 文件 / 目录 | 说明 |
+|-------------|------|
+| `settings.json` | 窗口位置、主题、模块开关与顺序、皮肤、热键、字体等 |
+| `data.json` | 待办、倒数日、速记便签、日期备注等业务数据 |
+| `skins/` | 导入的自定义皮肤图片/视频 |
 
 **💡 提示**：托盘菜单 → **导出数据备份** 可将 `data.json` 另存到桌面（`floatly-backup-日期.json`）。
 
@@ -177,17 +201,17 @@ dotnet publish -c Release
 
 ## 🎛️ 托盘菜单
 
-| 菜单项 | 快捷键 | 说明 |
-|--------|--------|------|
-| 显示/隐藏 | `Ctrl+Shift+D` | 切换主窗口可见性 |
-| 设置... | - | 打开设置窗口 |
+| 菜单项 | 默认快捷键 | 说明 |
+|--------|-----------|------|
+| 显示/隐藏 | `Ctrl+Shift+D` | 切换主窗口可见性（可在设置中修改） |
+| 设置... | — | 打开设置窗口 |
 | 添加待办 | `Ctrl+Shift+N` | 弹出输入框快速添加 |
-| 查看全部待办 | - | 打开待办管理窗口（历史 / 搜索 / 编辑） |
-| 添加倒数日... | - | 新建自定义倒数事件 |
-| 日历 → 回到今天 | - | 日历导航快捷跳转 |
-| 日历 → 跳转日期... | - | 选择特定日期 |
-| 导出数据备份 | - | 备份 `data.json` 到桌面 |
-| 退出 | - | 关闭应用 |
+| 查看全部待办 | — | 待办管理窗口（历史 / 搜索 / 编辑） |
+| 添加倒数日... | — | 新建自定义倒数事件 |
+| 日历 → 回到今天 | — | 日历导航快捷跳转 |
+| 日历 → 跳转日期... | — | 选择特定日期 |
+| 导出数据备份 | — | 备份 `data.json` 到桌面 |
+| 退出 | — | 关闭应用 |
 
 ---
 
@@ -200,8 +224,8 @@ dotnet publish -c Release
 <td width="50%">
 
 **功能增强**
-- ⏱️ 番茄钟、习惯打卡
 - 👁️ 护眼提醒
+- 🏃 习惯打卡
 - 🚀 快捷启动（4 格）
 - 📥 数据导入（当前仅支持导出）
 
@@ -215,12 +239,14 @@ dotnet publish -c Release
 - 🔋 电量监控
 - 📅 周进度 / 距周末倒计时
 - 📦 自包含单文件打包
+- 🗓️ 2027+ 节假日数据
 
 </td>
 </tr>
 </table>
 
-> 💡 详细设计、实现状态对照与体积/内存目标见 [DESIGN.md](DESIGN.md)
+> 详细设计、实现状态对照与体积/内存目标见 [DESIGN.md](DESIGN.md)  
+> Release 说明统一使用中文，模板见 [docs/RELEASE_NOTES_zh.md](docs/RELEASE_NOTES_zh.md)
 
 ---
 
