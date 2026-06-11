@@ -126,7 +126,7 @@ public partial class MainWindow : Window
         Opacity = Math.Clamp(_settings.Opacity, 0.30, 1.0);
         ApplyTheme();
 
-        WeatherText.Visibility = _settings.ShowWeather ? Visibility.Visible : Visibility.Collapsed;
+        WeatherPanel.Visibility = _settings.ShowWeather ? Visibility.Visible : Visibility.Collapsed;
         CityText.Visibility = _settings.ShowWeather && _settings.ShowCityName ? Visibility.Visible : Visibility.Collapsed;
         YearProgressPanel.Visibility = _settings.ShowYearProgress ? Visibility.Visible : Visibility.Collapsed;
         YearProgressCard.Visibility = _settings.ShowYearProgress ? Visibility.Visible : Visibility.Collapsed;
@@ -138,8 +138,12 @@ public partial class MainWindow : Window
         DailyQuoteText.Visibility = _settings.ShowDailyQuote ? Visibility.Visible : Visibility.Collapsed;
         ScratchPanel.Visibility = _settings.ShowScratch ? Visibility.Visible : Visibility.Collapsed;
 
-        var showWeatherExtra = _settings.ShowWeather && (_settings.ShowSunriseSunset || _settings.ShowTomorrowWeather);
-        WeatherExtraText.Visibility = showWeatherExtra ? Visibility.Visible : Visibility.Collapsed;
+        var showSun = _settings.ShowWeather && _settings.ShowSunriseSunset;
+        SunriseLineText.Visibility = showSun ? Visibility.Visible : Visibility.Collapsed;
+        SunsetLineText.Visibility = showSun ? Visibility.Visible : Visibility.Collapsed;
+        TomorrowLineText.Visibility = _settings.ShowWeather && _settings.ShowTomorrowWeather
+            ? Visibility.Visible
+            : Visibility.Collapsed;
 
         var showWeek = _settings.ShowWeekStrip;
         CalendarSection.Visibility = showWeek ? Visibility.Visible : Visibility.Collapsed;
@@ -257,13 +261,23 @@ public partial class MainWindow : Window
         DividerBorder.Background = new SolidColorBrush(_palette.Divider);
 
         ClockText.Foreground = Brush(textPrimary);
+        ClockSecondsText.Foreground = Brush(_palette.TextSecondary);
         DateText.Foreground = Brush(_palette.TextSecondary);
         LunarText.Foreground = Brush(_palette.TextTertiary);
         LunarSubText.Foreground = Brush(_palette.TextSubtle);
+        HeaderBlock.Background = Brush(FloatlyDesignTokens.CardBackground);
+        HeaderBlock.BorderBrush = Brush(_palette.PanelBorder);
         ApplyHuangLiTheme();
-        WeatherText.Foreground = Brush(_palette.TextSecondary);
+        WeatherTempText.Foreground = Brush(textPrimary);
+        WeatherDescText.Foreground = Brush(textPrimary);
+        WeatherIconText.Foreground = Brush(textPrimary);
+        WeatherRangeText.Foreground = Brush(_palette.TextSubtle);
+        WeatherFeelsText.Foreground = Brush(_palette.TextSubtle);
         CityText.Foreground = Brush(_palette.TextMuted);
-        WeatherExtraText.Foreground = Brush(_palette.TextSubtle);
+        SunriseLineText.Foreground = Brush(_palette.TextSubtle);
+        SunsetLineText.Foreground = Brush(_palette.TextSubtle);
+        TomorrowLineText.Foreground = Brush(_palette.TextSubtle);
+        PinBtn.Foreground = Topmost ? Brush(FloatlyDesignTokens.AccentBlue) : Brush(_palette.TextSecondary);
         ApplyProgressTheme(textPrimary);
         ApplySalaryTheme();
         ApplyPomodoroTheme(textPrimary);
@@ -521,15 +535,20 @@ public partial class MainWindow : Window
         _hotkeyService?.Configure(_settings.HotkeyShowHide, _settings.HotkeyQuickTodo);
     }
 
-    private string FormatClock(DateTime now) =>
-        _settings.ShowSeconds
-            ? now.ToString(_settings.Time24h ? "HH:mm:ss" : "hh:mm:ss", CultureInfo.InvariantCulture)
-            : now.ToString(_settings.Time24h ? "HH:mm" : "hh:mm", CultureInfo.InvariantCulture);
-
     private void RefreshClock()
     {
         var now = DateTime.Now;
-        ClockText.Text = FormatClock(now);
+        var timeFormat = _settings.Time24h ? "HH:mm" : "hh:mm";
+        ClockText.Text = now.ToString(timeFormat, CultureInfo.InvariantCulture);
+        if (_settings.ShowSeconds)
+        {
+            ClockSecondsText.Text = now.ToString("ss", CultureInfo.InvariantCulture);
+            ClockSecondsText.Visibility = Visibility.Visible;
+        }
+        else
+        {
+            ClockSecondsText.Visibility = Visibility.Collapsed;
+        }
 
         var displayDate = _calendarPreviewDate ?? now;
         var info = LunarCalendar.Get(displayDate);
@@ -546,6 +565,7 @@ public partial class MainWindow : Window
     {
         if (!_settings.ShowHuangLi)
         {
+            HeroLunarStrip.Visibility = Visibility.Collapsed;
             HuangLiPanel.Visibility = Visibility.Collapsed;
             LunarText.Visibility = Visibility.Visible;
             LunarSubText.Visibility = Visibility.Visible;
@@ -553,7 +573,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        HuangLiPanel.Visibility = Visibility.Visible;
+        HeroLunarStrip.Visibility = Visibility.Visible;
         LunarText.Visibility = Visibility.Collapsed;
         LunarSubText.Visibility = Visibility.Collapsed;
 
@@ -561,7 +581,8 @@ public partial class MainWindow : Window
 
         HuangLiSolarDate.Text = huangLi.SolarDateText;
         HuangLiLunarLarge.Text = huangLi.LunarDateLarge;
-        HuangLiMetaLine.Text = huangLi.MetaLine;
+        HuangLiMetaLineStrip.Text = huangLi.MetaLine;
+        HuangLiDetailNavLine.Text = huangLi.MetaLine;
         HuangLiYiText.Text = JoinHuangLiItems(huangLi.YiItems);
         HuangLiJiText.Text = JoinHuangLiItems(huangLi.JiItems);
 
@@ -585,7 +606,9 @@ public partial class MainWindow : Window
 
     private void ApplyHuangLiCollapsedState()
     {
-        HuangLiDetailsPanel.Visibility = _settings.HuangLiCollapsed ? Visibility.Collapsed : Visibility.Visible;
+        var expanded = !_settings.HuangLiCollapsed;
+        HuangLiDetailsPanel.Visibility = expanded ? Visibility.Visible : Visibility.Collapsed;
+        HuangLiPanel.Visibility = _settings.ShowHuangLi && expanded ? Visibility.Visible : Visibility.Collapsed;
         HuangLiCollapseBtn.Content = _settings.HuangLiCollapsed ? "⌄" : "⌃";
     }
 
@@ -646,7 +669,8 @@ public partial class MainWindow : Window
         HuangLiSolarDate.Foreground = Brush(_palette.TextEmpty);
         HuangLiCollapseBtn.Foreground = Brush(_palette.TextEmpty);
         HuangLiLunarLarge.Foreground = Brush(_palette.HuangLiAccent);
-        HuangLiMetaLine.Foreground = Brush(_palette.TextEmpty);
+        HuangLiMetaLineStrip.Foreground = Brush(_palette.TextEmpty);
+        HuangLiDetailNavLine.Foreground = Brush(_palette.TextEmpty);
         HuangLiPrevBtn.Foreground = Brush(_palette.HuangLiAccent);
         HuangLiNextBtn.Foreground = Brush(_palette.HuangLiAccent);
         HuangLiYiCircle.Background = Brush(_palette.HuangLiYiChipBg);
@@ -750,7 +774,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        const double headerHeight = 92;
+        var headerHeight = _settings.ShowHuangLi ? 168.0 : 128.0;
         var scrollBody = 480;
         const double toolbarHeight = 132;
         const double todoInput = 44;
@@ -1233,13 +1257,10 @@ public partial class MainWindow : Window
 
         var city = cache?.City ?? _settings.ResolvedCityName ?? _settings.City;
         var region = cache?.Region ?? _settings.ResolvedRegion;
-        var sourceLabel = !_settings.AutoLocateCity
-            ? LocationService.DescribeSource("manual")
-            : LocationService.DescribeSource(cache?.LocationSource ?? "auto");
 
         CityText.Text = string.IsNullOrWhiteSpace(region)
-            ? $"📍 {city}（{sourceLabel}）"
-            : $"📍 {city} · {region}（{sourceLabel}）";
+            ? $"📍 {city}"
+            : $"📍 {city} {region}";
         CityText.Visibility = Visibility.Visible;
     }
 
@@ -1314,9 +1335,15 @@ public partial class MainWindow : Window
 
         if (result is null)
         {
-            WeatherText.Text = "天气加载失败";
+            WeatherDescText.Text = "加载失败";
+            WeatherIconText.Text = "—";
+            WeatherTempText.Text = string.Empty;
+            WeatherRangeText.Text = string.Empty;
+            WeatherFeelsText.Text = string.Empty;
             RefreshCityDisplay();
-            WeatherExtraText.Visibility = Visibility.Collapsed;
+            SunriseLineText.Visibility = Visibility.Collapsed;
+            SunsetLineText.Visibility = Visibility.Collapsed;
+            TomorrowLineText.Visibility = Visibility.Collapsed;
             return;
         }
 
@@ -1409,28 +1436,47 @@ public partial class MainWindow : Window
 
     private void ApplyWeather(WeatherCache cache)
     {
-        WeatherText.Text = $"{cache.Icon} {cache.Temperature}°  {cache.Description}  {cache.TempMin}°~{cache.TempMax}°";
+        WeatherIconText.Text = cache.Icon;
+        WeatherTempText.Text = $"{cache.Temperature}°";
+        WeatherDescText.Text = cache.Description;
+        WeatherRangeText.Text = $"{cache.TempMin}°~{cache.TempMax}°";
+        WeatherFeelsText.Text = $"体感 {cache.Temperature}°";
 
-        var parts = new List<string>();
-        if (_settings.ShowSunriseSunset && cache.Sunrise is not null && cache.Sunset is not null)
+        var showSun = _settings.ShowWeather && _settings.ShowSunriseSunset;
+        if (showSun && cache.Sunrise is not null)
         {
-            parts.Add($"日出 {cache.Sunrise} · 日落 {cache.Sunset}");
+            SunriseLineText.Text = $"🌅 日出 {cache.Sunrise}";
+            SunriseLineText.Visibility = Visibility.Visible;
+        }
+        else
+        {
+            SunriseLineText.Visibility = Visibility.Collapsed;
         }
 
-        if (_settings.ShowTomorrowWeather && cache.TomorrowDescription is not null
+        if (showSun && cache.Sunset is not null)
+        {
+            SunsetLineText.Text = $"🌇 日落 {cache.Sunset}";
+            SunsetLineText.Visibility = Visibility.Visible;
+        }
+        else
+        {
+            SunsetLineText.Visibility = Visibility.Collapsed;
+        }
+
+        if (_settings.ShowWeather && _settings.ShowTomorrowWeather
             && cache.TomorrowMin is not null && cache.TomorrowMax is not null)
         {
-            parts.Add($"明天 {cache.TomorrowIcon} {cache.TomorrowDescription} {cache.TomorrowMin}°~{cache.TomorrowMax}°");
+            var tomorrowIcon = cache.TomorrowIcon ?? "☁";
+            var tomorrowDesc = cache.TomorrowDescription ?? string.Empty;
+            TomorrowLineText.Text = string.IsNullOrWhiteSpace(tomorrowDesc)
+                ? $"明天 {tomorrowIcon} {cache.TomorrowMin}°~{cache.TomorrowMax}°"
+                : $"明天 {tomorrowIcon} {tomorrowDesc} {cache.TomorrowMin}°~{cache.TomorrowMax}°";
+            TomorrowLineText.Visibility = Visibility.Visible;
         }
-
-        if (parts.Count == 0)
+        else
         {
-            WeatherExtraText.Visibility = Visibility.Collapsed;
-            return;
+            TomorrowLineText.Visibility = Visibility.Collapsed;
         }
-
-        WeatherExtraText.Text = string.Join("  ", parts);
-        WeatherExtraText.Visibility = _settings.ShowWeather ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void CheckTodoReminders()
@@ -1710,6 +1756,7 @@ public partial class MainWindow : Window
         JsonStore.SaveSettings(_settings);
         _tray?.RefreshMenu();
         SyncBottomToolbar();
+        PinBtn.Foreground = Topmost ? Brush(FloatlyDesignTokens.AccentBlue) : Brush(_palette.TextSecondary);
     }
 
     private void ToggleAutoStart()
@@ -2104,7 +2151,7 @@ public partial class MainWindow : Window
     {
         while (source is not null)
         {
-            if (source == ClockText || source == DateText || source == LunarText || source == LunarSubText)
+            if (source == HeaderBlock)
             {
                 return true;
             }
@@ -2278,6 +2325,15 @@ public partial class MainWindow : Window
     private void Opacity55_Click(object sender, RoutedEventArgs e) => SetOpacity(0.55);
 
     private void PinBtn_Click(object sender, RoutedEventArgs e) => ToggleTopmost();
+
+    private void MoreBtn_Click(object sender, RoutedEventArgs e)
+    {
+        if (MainBorder.ContextMenu is not null)
+        {
+            MainBorder.ContextMenu.PlacementTarget = HeaderBlock;
+            MainBorder.ContextMenu.IsOpen = true;
+        }
+    }
 
     private void OpacitySlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
