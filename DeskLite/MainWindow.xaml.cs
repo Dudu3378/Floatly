@@ -90,11 +90,7 @@ public partial class MainWindow : Window
 
     private void Window_SourceInitialized(object? sender, EventArgs e)
     {
-        if (!_settings.ClickThrough)
-        {
-            WindowHelper.EnableBorderlessResize(this);
-        }
-
+        WindowHelper.EnableBorderlessResize(this);
         WindowHelper.SetClickThrough(this, _settings.ClickThrough);
         if (_settings.EnableGlobalHotkey)
         {
@@ -123,8 +119,8 @@ public partial class MainWindow : Window
 
         WeatherText.Visibility = _settings.ShowWeather ? Visibility.Visible : Visibility.Collapsed;
         CityText.Visibility = _settings.ShowWeather && _settings.ShowCityName ? Visibility.Visible : Visibility.Collapsed;
-        YearProgressText.Visibility = _settings.ShowYearProgress ? Visibility.Visible : Visibility.Collapsed;
-        CountdownText.Visibility = _settings.ShowCountdown ? Visibility.Visible : Visibility.Collapsed;
+        YearProgressPanel.Visibility = _settings.ShowYearProgress ? Visibility.Visible : Visibility.Collapsed;
+        CountdownPanel.Visibility = _settings.ShowCountdown ? Visibility.Visible : Visibility.Collapsed;
         DailyQuoteText.Visibility = _settings.ShowDailyQuote ? Visibility.Visible : Visibility.Collapsed;
         ScratchBox.Visibility = _settings.ShowScratch ? Visibility.Visible : Visibility.Collapsed;
 
@@ -181,8 +177,7 @@ public partial class MainWindow : Window
         WeatherText.Foreground = Brush(_palette.TextSecondary);
         CityText.Foreground = Brush(_palette.TextMuted);
         WeatherExtraText.Foreground = Brush(_palette.TextSubtle);
-        YearProgressText.Foreground = Brush(_palette.TextMuted);
-        CountdownText.Foreground = Brush(_palette.TextSecondary);
+        ApplyProgressTheme();
         DailyQuoteText.Foreground = Brush(_palette.TextMuted);
         TodoTitleText.Foreground = Brush(_palette.TextMuted);
         EmptyTodoText.Foreground = Brush(_palette.TextEmpty);
@@ -531,19 +526,89 @@ public partial class MainWindow : Window
     {
         if (_settings.ShowYearProgress)
         {
-            YearProgressText.Text = YearProgressService.GetLine(DateTime.Today);
+            var info = YearProgressService.GetInfo(DateTime.Today);
+            YearProgressLabel.Text = $"{info.Year} 年进度";
+            YearProgressPercent.Text = $"{info.Percent:F1}%";
+            YearProgressDetail.Text = $"已过 {info.DaysElapsed} 天 / 全年 {info.DaysInYear} 天";
+            QueueProgressBarUpdate(YearProgressTrack, YearProgressFill, info.Percent);
         }
 
         if (_settings.ShowCountdown)
         {
-            CountdownText.Text = CountdownService.GetLine(_todoStore.Data.Countdowns, DateTime.Today)
-                                 ?? "⏳ 暂无倒数日（托盘可添加）";
+            var info = CountdownService.GetInfo(_todoStore.Data.Countdowns, DateTime.Today);
+            if (info is null)
+            {
+                CountdownLabel.Text = "⏳ 暂无倒数日";
+                CountdownDays.Text = "托盘可添加";
+                CountdownHint.Text = "在托盘菜单中添加目标日期";
+                QueueProgressBarUpdate(CountdownTrack, CountdownFill, 0);
+            }
+            else
+            {
+                CountdownLabel.Text = $"距离{info.Value.Title}还有";
+                CountdownDays.Text = $"{info.Value.Days} 天";
+                CountdownHint.Text = info.Value.Days <= 7
+                    ? "目标即将到来"
+                    : info.Value.Days <= 30
+                        ? "进入倒计时阶段"
+                        : "越接近目标，进度条越满";
+                QueueProgressBarUpdate(CountdownTrack, CountdownFill, info.Value.ProgressPercent);
+            }
         }
 
         if (_settings.ShowDailyQuote)
         {
             DailyQuoteText.Text = DailyQuoteService.GetToday(DateTime.Today);
         }
+    }
+
+    private void ApplyProgressTheme()
+    {
+        var fillBrush = new LinearGradientBrush(
+            _palette.ProgressFillStart,
+            _palette.ProgressFillEnd,
+            new System.Windows.Point(0, 0),
+            new System.Windows.Point(1, 0));
+
+        YearProgressLabel.Foreground = Brush(_palette.TextMuted);
+        YearProgressPercent.Foreground = Brush(_palette.TextPrimary);
+        YearProgressDetail.Foreground = Brush(_palette.TextSubtle);
+        YearProgressTrack.Background = Brush(_palette.ProgressTrack);
+        YearProgressFill.Background = fillBrush;
+
+        CountdownLabel.Foreground = Brush(_palette.TextMuted);
+        CountdownDays.Foreground = Brush(_palette.TextSecondary);
+        CountdownHint.Foreground = Brush(_palette.TextSubtle);
+        CountdownTrack.Background = Brush(_palette.ProgressTrack);
+        CountdownFill.Background = fillBrush;
+    }
+
+    private void QueueProgressBarUpdate(Border track, Border fill, double percent)
+    {
+        void Update()
+        {
+            if (track.ActualWidth <= 0)
+            {
+                return;
+            }
+
+            fill.Width = Math.Max(0, track.ActualWidth * percent / 100.0);
+        }
+
+        if (track.ActualWidth > 0)
+        {
+            Update();
+            return;
+        }
+
+        void OnSizeChanged(object? sender, SizeChangedEventArgs e)
+        {
+            track.SizeChanged -= OnSizeChanged;
+            Update();
+        }
+
+        track.SizeChanged += OnSizeChanged;
+        Dispatcher.BeginInvoke(Update, DispatcherPriority.Loaded);
     }
 
     private void RefreshCalendar()

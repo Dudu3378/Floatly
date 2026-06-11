@@ -7,7 +7,7 @@
         WindowStyle="None"
         AllowsTransparency="True"
         Background="Transparent"
-        ResizeMode="NoResize"
+        ResizeMode="CanResize"
         ShowInTaskbar="False"
         Topmost="True"
         SourceInitialized="Window_SourceInitialized">
@@ -156,8 +156,21 @@
                         </ScrollViewer>
                     </Border>
 
-                    <TextBlock x:Name="YearProgressText" FontSize="11" Foreground="#8B95A5"
-                               Margin="0,0,0,6" Visibility="Collapsed" />
+                    <StackPanel x:Name="YearProgressPanel" Margin="0,0,0,8" Visibility="Collapsed">
+                        <Grid Margin="0,0,0,4">
+                            <TextBlock x:Name="YearProgressLabel" Text="2026 年进度" FontSize="11"
+                                       Foreground="#8B95A5" VerticalAlignment="Center" />
+                            <TextBlock x:Name="YearProgressPercent" Text="45.2%" FontSize="13" FontWeight="SemiBold"
+                                       Foreground="#F5F7FA" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                        </Grid>
+                        <Border x:Name="YearProgressTrack" Height="7" CornerRadius="3.5"
+                                Background="#28FFFFFF" ClipToBounds="True" Margin="0,0,0,4">
+                            <Border x:Name="YearProgressFill" HorizontalAlignment="Left" CornerRadius="3.5"
+                                    Background="#3B82F6" Width="0" />
+                        </Border>
+                        <TextBlock x:Name="YearProgressDetail" Text="已过 162 天 / 全年 366 天"
+                                   FontSize="10" Foreground="#7E8A9C" />
+                    </StackPanel>
 
                     <TextBlock x:Name="CityText" Text="📍 北京"
                                FontSize="11" Foreground="#8B95A5" Margin="0,0,0,4" Visibility="Collapsed" />
@@ -168,8 +181,21 @@
                     <TextBlock x:Name="WeatherExtraText" FontSize="11" Foreground="#7E8A9C"
                                Margin="0,0,0,6" Visibility="Collapsed" />
 
-                    <TextBlock x:Name="CountdownText" FontSize="12" Foreground="#B8C0CC"
-                               Margin="0,0,0,4" Visibility="Collapsed" />
+                    <StackPanel x:Name="CountdownPanel" Margin="0,0,0,8" Visibility="Collapsed">
+                        <Grid Margin="0,0,0,4">
+                            <TextBlock x:Name="CountdownLabel" Text="距离国庆还有" FontSize="11"
+                                       Foreground="#8B95A5" VerticalAlignment="Center" />
+                            <TextBlock x:Name="CountdownDays" Text="112 天" FontSize="13" FontWeight="SemiBold"
+                                       Foreground="#B8C0CC" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                        </Grid>
+                        <Border x:Name="CountdownTrack" Height="7" CornerRadius="3.5"
+                                Background="#28FFFFFF" ClipToBounds="True" Margin="0,0,0,4">
+                            <Border x:Name="CountdownFill" HorizontalAlignment="Left" CornerRadius="3.5"
+                                    Background="#3B82F6" Width="0" />
+                        </Border>
+                        <TextBlock x:Name="CountdownHint" Text="越接近目标，进度条越满"
+                                   FontSize="10" Foreground="#7E8A9C" />
+                    </StackPanel>
 
                     <TextBlock x:Name="DailyQuoteText" FontSize="11" Foreground="#8B95A5"
                                FontStyle="Italic" TextWrapping="Wrap" Margin="0,0,0,8" Visibility="Collapsed" />

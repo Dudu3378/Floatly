@@ -2,8 +2,12 @@ using DeskLite.Models;
 
 namespace DeskLite.Services;
 
+public readonly record struct CountdownInfo(string Title, int Days, double ProgressPercent);
+
 public static class CountdownService
 {
+    private const int ProgressHorizonDays = 365;
+
     private static readonly (string Title, int Month, int Day)[] BuiltInYearly =
     [
         ("元旦", 1, 1),
@@ -11,10 +15,22 @@ public static class CountdownService
         ("国庆节", 10, 1)
     ];
 
-    public static string? GetLine(IReadOnlyList<CountdownItem> items, DateTime today)
+    public static CountdownInfo? GetInfo(IReadOnlyList<CountdownItem> items, DateTime today)
     {
         var nearest = FindNearest(items, today);
-        return nearest is null ? null : $"⏳ 距离{nearest.Value.Title}还有 {nearest.Value.Days} 天";
+        if (nearest is null)
+        {
+            return null;
+        }
+
+        var progress = Math.Clamp((1.0 - nearest.Value.Days / (double)ProgressHorizonDays) * 100, 0, 100);
+        return new CountdownInfo(nearest.Value.Title, nearest.Value.Days, progress);
+    }
+
+    public static string? GetLine(IReadOnlyList<CountdownItem> items, DateTime today)
+    {
+        var info = GetInfo(items, today);
+        return info is null ? null : $"⏳ 距离{info.Value.Title}还有 {info.Value.Days} 天";
     }
 
     public static (string Title, int Days)? FindNearest(IReadOnlyList<CountdownItem> items, DateTime today)

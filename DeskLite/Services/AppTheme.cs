@@ -39,6 +39,9 @@ public sealed class AppThemePalette
     public WpfColor HuangLiLuckBad { get; init; } = WpfColor.FromRgb(0xF8, 0x71, 0x71);
     public WpfColor HuangLiTimeCell { get; init; } = WpfColor.FromArgb(0x18, 0xFF, 0xFF, 0xFF);
     public WpfColor HuangLiBadgeBg { get; init; } = WpfColor.FromArgb(0x20, 0x3B, 0x82, 0xF6);
+    public WpfColor ProgressTrack { get; init; } = WpfColor.FromArgb(0x28, 0xFF, 0xFF, 0xFF);
+    public WpfColor ProgressFillStart { get; init; } = WpfColor.FromRgb(0x3B, 0x82, 0xF6);
+    public WpfColor ProgressFillEnd { get; init; } = WpfColor.FromRgb(0x60, 0xA5, 0xFA);
 
     public static AppThemePalette For(ThemeMode mode) => mode switch
     {
@@ -77,7 +80,10 @@ public sealed class AppThemePalette
         HuangLiLuckGood = WpfColor.FromRgb(0x4A, 0xDE, 0x80),
         HuangLiLuckBad = WpfColor.FromRgb(0xF8, 0x71, 0x71),
         HuangLiTimeCell = WpfColor.FromArgb(0x18, 0xFF, 0xFF, 0xFF),
-        HuangLiBadgeBg = WpfColor.FromArgb(0x20, 0x3B, 0x82, 0xF6)
+        HuangLiBadgeBg = WpfColor.FromArgb(0x20, 0x3B, 0x82, 0xF6),
+        ProgressTrack = WpfColor.FromArgb(0x28, 0xFF, 0xFF, 0xFF),
+        ProgressFillStart = WpfColor.FromRgb(0x3B, 0x82, 0xF6),
+        ProgressFillEnd = WpfColor.FromRgb(0x60, 0xA5, 0xFA)
     };
 
     private static readonly AppThemePalette Light = new()
@@ -108,6 +114,9 @@ public sealed class AppThemePalette
         HuangLiLuckGood = WpfColor.FromRgb(0x16, 0xA3, 0x4A),
         HuangLiLuckBad = WpfColor.FromRgb(0xDC, 0x26, 0x26),
         HuangLiTimeCell = WpfColor.FromArgb(0x0C, 0x15, 0x23, 0x42),
-        HuangLiBadgeBg = WpfColor.FromArgb(0x14, 0x3B, 0x82, 0xF6)
+        HuangLiBadgeBg = WpfColor.FromArgb(0x14, 0x3B, 0x82, 0xF6),
+        ProgressTrack = WpfColor.FromArgb(0x40, 0x94, 0xA3, 0xB8),
+        ProgressFillStart = WpfColor.FromRgb(0x25, 0x63, 0xEB),
+        ProgressFillEnd = WpfColor.FromRgb(0x3B, 0x82, 0xF6)
     };
 }
