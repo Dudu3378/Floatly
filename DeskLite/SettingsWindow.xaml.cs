@@ -15,6 +15,14 @@ public partial class SettingsWindow : Window
         ("高透明 (55%)", 0.55)
     ];
 
+    private static readonly (string Label, double Value)[] FontScalePresets =
+    [
+        ("小 (85%)", 0.85),
+        ("标准 (100%)", 1.0),
+        ("大 (115%)", 1.15),
+        ("特大 (130%)", 1.3)
+    ];
+
     private readonly AppSettings _original;
     private readonly LocationService _locationService = new();
 
@@ -25,6 +33,7 @@ public partial class SettingsWindow : Window
         InitializeComponent();
         _original = Clone(settings);
         InitOpacityCombo();
+        InitFontScaleCombo();
         LoadFromSettings(_original);
     }
 
@@ -39,6 +48,14 @@ public partial class SettingsWindow : Window
         foreach (var (label, _) in OpacityPresets)
         {
             CmbOpacity.Items.Add(label);
+        }
+    }
+
+    private void InitFontScaleCombo()
+    {
+        foreach (var (label, _) in FontScalePresets)
+        {
+            CmbFontScale.Items.Add(label);
         }
     }
 
@@ -70,6 +87,17 @@ public partial class SettingsWindow : Window
             }
         }
         CmbOpacity.SelectedIndex = opacityIndex;
+
+        var fontIndex = 1;
+        for (var i = 0; i < FontScalePresets.Length; i++)
+        {
+            if (Math.Abs(s.FontScale - FontScalePresets[i].Value) < 0.001)
+            {
+                fontIndex = i;
+                break;
+            }
+        }
+        CmbFontScale.SelectedIndex = fontIndex;
 
         ChkShowWeather.IsChecked = s.ShowWeather;
         ChkShowCityName.IsChecked = s.ShowCityName;
@@ -110,6 +138,8 @@ public partial class SettingsWindow : Window
         s.Theme = RbThemeLight.IsChecked == true ? "light" : "dark";
         var opacityIndex = Math.Max(0, CmbOpacity.SelectedIndex);
         s.Opacity = OpacityPresets[opacityIndex].Value;
+        var fontIndex = Math.Max(0, CmbFontScale.SelectedIndex);
+        s.FontScale = FontScalePresets[fontIndex].Value;
 
         s.ShowWeather = ChkShowWeather.IsChecked == true;
         s.ShowCityName = ChkShowCityName.IsChecked == true;

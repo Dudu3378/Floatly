@@ -27,6 +27,7 @@ public partial class MainWindow : Window
     private TrayService? _tray;
     private GlobalHotkeyService? _hotkeyService;
     private AppThemePalette _palette = AppThemePalette.For(ThemeMode.Dark);
+    private bool _suppressSizePersist;
 
     public MainWindow()
     {
@@ -84,10 +85,16 @@ public partial class MainWindow : Window
         };
 
         LocationChanged += (_, _) => SaveWindowPosition();
+        SizeChanged += OnWindowSizeChanged;
     }
 
     private void Window_SourceInitialized(object? sender, EventArgs e)
     {
+        if (!_settings.ClickThrough)
+        {
+            WindowHelper.EnableBorderlessResize(this);
+        }
+
         WindowHelper.SetClickThrough(this, _settings.ClickThrough);
         if (_settings.EnableGlobalHotkey)
         {
@@ -127,7 +134,20 @@ public partial class MainWindow : Window
         var showWeek = _settings.ShowWeekStrip;
         CalendarSection.Visibility = showWeek ? Visibility.Visible : Visibility.Collapsed;
         HuangLiPanel.Visibility = _settings.ShowHuangLi ? Visibility.Visible : Visibility.Collapsed;
-        UpdateWindowHeight();
+
+        Width = Math.Clamp(_settings.WindowWidth, 260, 480);
+        if (_settings.UserCustomSize)
+        {
+            _suppressSizePersist = true;
+            Height = Math.Clamp(_settings.WindowHeight, MinHeight, 900);
+            _suppressSizePersist = false;
+        }
+        else
+        {
+            UpdateWindowHeight();
+        }
+
+        FontScaleHelper.Apply(this, _settings.FontScale);
     }
 
     private void LoadCalendarState()
@@ -378,6 +398,7 @@ public partial class MainWindow : Window
         HuangLiXiongLabel.Foreground = Brush(_palette.TextEmpty);
         HuangLiSecondaryText.Foreground = Brush(_palette.TextEmpty);
         HuangLiCurrentTimeText.Foreground = Brush(_palette.Accent);
+        FontScaleHelper.Apply(this, _settings.FontScale);
     }
 
     private void PopulateHuangLiNeutralChips(WrapPanel panel, IReadOnlyList<string> items)
@@ -470,52 +491,40 @@ public partial class MainWindow : Window
 
     private void UpdateWindowHeight()
     {
-        var height = 460;
-        if (_settings.ShowHuangLi)
+        if (_settings.UserCustomSize)
         {
-            height += 152;
+            return;
         }
+
+        const double headerHeight = 72;
+        const double scrollBody = 240;
+        const double todoInput = 40;
+        const double chrome = 28;
+
+        var height = headerHeight + scrollBody + todoInput + chrome;
 
         if (_settings.ShowWeekStrip)
         {
             height += _calendarMode == CalendarViewMode.Month ? 200 : 95;
         }
 
-        if (_settings.ShowWeather)
-        {
-            height += 36;
-            if (_settings.ShowCityName)
-            {
-                height += 18;
-            }
+        _suppressSizePersist = true;
+        Height = Math.Clamp(height, MinHeight, 720);
+        _settings.WindowHeight = Height;
+        _suppressSizePersist = false;
+    }
 
-            if (_settings.ShowSunriseSunset || _settings.ShowTomorrowWeather)
-            {
-                height += 22;
-            }
+    private void OnWindowSizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        if (_suppressSizePersist || !IsLoaded)
+        {
+            return;
         }
 
-        if (_settings.ShowYearProgress)
-        {
-            height += 18;
-        }
-
-        if (_settings.ShowCountdown)
-        {
-            height += 22;
-        }
-
-        if (_settings.ShowDailyQuote)
-        {
-            height += 28;
-        }
-
-        if (_settings.ShowScratch)
-        {
-            height += 34;
-        }
-
-        Height = Math.Clamp(height, 420, 820);
+        _settings.WindowWidth = ActualWidth;
+        _settings.WindowHeight = ActualHeight;
+        _settings.UserCustomSize = true;
+        JsonStore.SaveSettings(_settings);
     }
 
     private void RefreshExtras()
@@ -1078,10 +1087,13 @@ public partial class MainWindow : Window
         _settings.EnableGlobalHotkey = next.EnableGlobalHotkey;
         _settings.Theme = next.Theme;
         _settings.Opacity = next.Opacity;
+        _settings.FontScale = next.FontScale;
         _settings.City = next.City;
         _settings.CalendarMode = next.CalendarMode;
         _settings.Left = left;
         _settings.Top = top;
+        _settings.WindowWidth = Width;
+        _settings.WindowHeight = Height;
 
         var cityChanged = !string.Equals(prevCity, next.City, StringComparison.Ordinal);
         var autoLocateChanged = prevAutoLocate != next.AutoLocateCity;
@@ -1279,6 +1291,12 @@ public partial class MainWindow : Window
     {
         _settings.Left = Left;
         _settings.Top = Top;
+        if (ActualWidth > 0 && ActualHeight > 0)
+        {
+            _settings.WindowWidth = Width;
+            _settings.WindowHeight = Height;
+        }
+
         JsonStore.SaveSettings(_settings);
     }
 
