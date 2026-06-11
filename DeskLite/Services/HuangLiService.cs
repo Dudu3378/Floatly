@@ -17,7 +17,7 @@ public static class HuangLiService
         var weekName = solar.Week == 0 ? "周日" : $"周{solar.WeekInChinese}";
         var headline = $"{lunar.YearInGanZhi}年 {lunar.MonthInGanZhi}月 {lunar.DayInGanZhi}日 · 属{lunar.YearShengXiao} · {weekName} · 第{weekNo}周";
         var solarDateText = $"{date.Year}年{date.Month}月{date.Day}日";
-        var lunarDateLarge = $"{lunar.MonthInChinese}{lunar.DayInChinese}";
+        var lunarDateLarge = $"{lunar.MonthInChinese}月{lunar.DayInChinese}";
         var metaLine = $"{lunar.YearInGanZhi}年 {lunar.MonthInGanZhi}月 {lunar.DayInGanZhi}日 [属{lunar.YearShengXiao}] {weekName} 第{weekNo}周";
 
         HuangLiCurrentTimeInfo? currentTime = null;
