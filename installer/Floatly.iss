@@ -1,4 +1,5 @@
-#define MyAppName "Floatly"
+﻿#define MyAppName "Floatly"
+#define MyAppDisplayName "Floatly（浮岛）"
 #define MyAppVersion "1.0.0"
 #define MyAppPublisher "cass-2003"
 #define MyAppURL "https://github.com/cass-2003/Floatly"
@@ -6,15 +7,15 @@
 
 [Setup]
 AppId={{A8F3C2E1-9B4D-4A7E-8F1C-2D5E6A9B0C3D}
-AppName={#MyAppName}
+AppName={#MyAppDisplayName}
 AppVersion={#MyAppVersion}
-AppVerName={#MyAppName} {#MyAppVersion}
+AppVerName={#MyAppDisplayName} {#MyAppVersion}
 AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}
 AppUpdatesURL={#MyAppURL}
 DefaultDirName={autopf}\{#MyAppName}
-DefaultGroupName={#MyAppName}
+DefaultGroupName={#MyAppDisplayName}
 AllowNoIcons=yes
 OutputDir=..\release
 OutputBaseFilename=Floatly-Setup-{#MyAppVersion}
@@ -26,9 +27,15 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 PrivilegesRequired=lowest
 DisableProgramGroupPage=yes
+ShowLanguageDialog=no
 
 [Languages]
+Name: "chinesesimp"; MessagesFile: "ChineseSimplified.isl"
 Name: "english"; MessagesFile: "compiler:Default.isl"
+
+[CustomMessages]
+chinesesimp.LaunchProgram=安装完成后运行 {#MyAppDisplayName}
+english.LaunchProgram=Launch {#MyAppDisplayName} after installation
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
@@ -37,12 +44,12 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 Source: "..\release\Floatly\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
-Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
-Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
+Name: "{group}\{#MyAppDisplayName}"; Filename: "{app}\{#MyAppExeName}"
+Name: "{group}\{cm:UninstallProgram,{#MyAppDisplayName}}"; Filename: "{uninstallexe}"
+Name: "{autodesktop}\{#MyAppDisplayName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram}"; Flags: nowait postinstall skipifsilent
 
 [Code]
 function IsDotNet8DesktopInstalled: Boolean;
@@ -76,10 +83,21 @@ begin
   Result := True;
   if not IsDotNet8DesktopInstalled then
   begin
-    if MsgBox('Floatly requires the .NET 8 Desktop Runtime (x64).' + #13#10 + #13#10 +
-      'Download: https://dotnet.microsoft.com/en-us/download/dotnet/8.0' + #13#10 + #13#10 +
-      'Continue installation anyway?',
-      mbConfirmation, MB_YESNO) = IDNO then
-      Result := False;
+    if ActiveLanguage = 'chinesesimp' then
+    begin
+      if MsgBox('浮岛（Floatly）需要安装 .NET 8 桌面运行时（x64）。' + #13#10 + #13#10 +
+        '下载地址：https://dotnet.microsoft.com/zh-cn/download/dotnet/8.0' + #13#10 + #13#10 +
+        '是否仍要继续安装？',
+        mbConfirmation, MB_YESNO) = IDNO then
+        Result := False;
+    end
+    else
+    begin
+      if MsgBox('Floatly requires the .NET 8 Desktop Runtime (x64).' + #13#10 + #13#10 +
+        'Download: https://dotnet.microsoft.com/en-us/download/dotnet/8.0' + #13#10 + #13#10 +
+        'Continue installation anyway?',
+        mbConfirmation, MB_YESNO) = IDNO then
+        Result := False;
+    end;
   end;
 end;
