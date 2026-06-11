@@ -75,6 +75,19 @@
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="Padding" Value="8,6" />
         </Style>
+        <Style x:Key="SettingsSlider" TargetType="Slider">
+            <Setter Property="Minimum" Value="0" />
+            <Setter Property="Maximum" Value="100" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Margin" Value="0,0,10,0" />
+            <Setter Property="Foreground" Value="{StaticResource SettingsAccent}" />
+        </Style>
+        <Style x:Key="SettingsNumericBox" TargetType="TextBox" BasedOn="{StaticResource SettingsTextBox}">
+            <Setter Property="Width" Value="52" />
+            <Setter Property="Height" Value="28" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="TextAlignment" Value="Center" />
+        </Style>
         <Style x:Key="PrimaryButton" TargetType="Button">
             <Setter Property="Background" Value="{StaticResource SettingsAccent}" />
             <Setter Property="Foreground" Value="White" />
@@ -139,12 +152,32 @@
                         </StackPanel>
 
                         <TextBlock Style="{StaticResource SectionTitle}" Text="窗口透明度" />
-                        <ComboBox x:Name="CmbOpacity" Width="220" HorizontalAlignment="Left"
-                                  Style="{StaticResource SettingsComboBox}" Margin="0,0,0,14" />
+                        <Grid Margin="0,0,0,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <Slider x:Name="SliderOpacity" Grid.Column="0" Style="{StaticResource SettingsSlider}"
+                                    Minimum="30" Maximum="100" IsSnapToTickEnabled="True" TickFrequency="1"
+                                    ValueChanged="SliderOpacity_ValueChanged" />
+                            <TextBox x:Name="TxtOpacity" Grid.Column="1" Style="{StaticResource SettingsNumericBox}"
+                                     LostFocus="TxtOpacity_LostFocus" KeyDown="TxtOpacity_KeyDown" />
+                        </Grid>
+                        <TextBlock Style="{StaticResource HintText}" Text="30–100（数值越大越不透明）" Margin="0,0,0,14" />
 
                         <TextBlock Style="{StaticResource SectionTitle}" Text="字号" />
-                        <ComboBox x:Name="CmbFontScale" Width="220" HorizontalAlignment="Left"
-                                  Style="{StaticResource SettingsComboBox}" />
+                        <Grid Margin="0,0,0,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <Slider x:Name="SliderFontSize" Grid.Column="0" Style="{StaticResource SettingsSlider}"
+                                    Minimum="10" Maximum="16" IsSnapToTickEnabled="True" TickFrequency="1"
+                                    ValueChanged="SliderFontSize_ValueChanged" />
+                            <TextBox x:Name="TxtFontSize" Grid.Column="1" Style="{StaticResource SettingsNumericBox}"
+                                     LostFocus="TxtFontSize_LostFocus" KeyDown="TxtFontSize_KeyDown" />
+                        </Grid>
+                        <TextBlock Style="{StaticResource HintText}" Text="10–16 pt" />
                         <TextBlock Style="{StaticResource HintText}" Text="拖拽窗口四边或四角可调整大小" Margin="0,14,0,0" />
                     </StackPanel>
                 </ScrollViewer>

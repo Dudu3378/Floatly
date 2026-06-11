@@ -114,7 +114,7 @@ public partial class MainWindow : Window
         Topmost = _settings.AlwaysOnTop;
         Left = _settings.Left;
         Top = _settings.Top;
-        Opacity = Math.Clamp(_settings.Opacity, 0.45, 1.0);
+        Opacity = Math.Clamp(_settings.Opacity, 0.30, 1.0);
         ApplyTheme();
 
         WeatherText.Visibility = _settings.ShowWeather ? Visibility.Visible : Visibility.Collapsed;
@@ -264,7 +264,7 @@ public partial class MainWindow : Window
 
     public void SetOpacity(double opacity)
     {
-        _settings.Opacity = Math.Clamp(opacity, 0.45, 1.0);
+        _settings.Opacity = Math.Clamp(opacity, 0.30, 1.0);
         Opacity = _settings.Opacity;
         JsonStore.SaveSettings(_settings);
         _tray?.RefreshMenu();
@@ -1207,6 +1207,7 @@ public partial class MainWindow : Window
         _settings.EnableGlobalHotkey = next.EnableGlobalHotkey;
         _settings.Theme = next.Theme;
         _settings.Opacity = next.Opacity;
+        _settings.FontSizePt = next.FontSizePt;
         _settings.FontScale = next.FontScale;
         _settings.City = next.City;
         _settings.CalendarMode = next.CalendarMode;

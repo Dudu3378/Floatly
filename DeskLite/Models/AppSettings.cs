@@ -30,6 +30,8 @@ public sealed class AppSettings
     public double WindowHeight { get; set; } = 540;
     public bool UserCustomSize { get; set; }
     public double FontScale { get; set; } = 1.0;
+    /// <summary>UI font size in pt (10–16). Null in older settings files — migrate from <see cref="FontScale"/>.</summary>
+    public int? FontSizePt { get; set; }
     public double? WeatherLatitude { get; set; }
     public double? WeatherLongitude { get; set; }
     public string? ResolvedCityName { get; set; }

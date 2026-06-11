@@ -55,7 +55,10 @@ public static class JsonStore
         try
         {
             var json = File.ReadAllText(SettingsPath);
-            return JsonSerializer.Deserialize<AppSettings>(json, JsonOptions) ?? new AppSettings();
+            var settings = JsonSerializer.Deserialize<AppSettings>(json, JsonOptions) ?? new AppSettings();
+            FontScaleHelper.NormalizeFontSettings(settings);
+            settings.Opacity = Math.Clamp(settings.Opacity, 0.30, 1.0);
+            return settings;
         }
         catch
         {

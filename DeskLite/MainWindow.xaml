@@ -188,19 +188,22 @@
                                         <Border x:Name="HuangLiJiShenInner" Grid.Column="0" BorderBrush="#30FFFFFF" BorderThickness="0,0,1,1" Padding="4,4">
                                             <StackPanel>
                                                 <TextBlock x:Name="HuangLiJiShenLabel" Text="吉神宜趋" FontSize="10" Foreground="#B88A5A" />
-                                                <TextBlock x:Name="HuangLiJiShenVal" FontSize="10" Foreground="#B8C0CC" Margin="0,2,0,0" TextWrapping="Wrap" />
+                                                <TextBlock x:Name="HuangLiJiShenVal" FontSize="10" Foreground="#B8C0CC" Margin="0,2,0,0"
+                                                           TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" />
                                             </StackPanel>
                                         </Border>
                                         <Border x:Name="HuangLiTaiShenInner" Grid.Column="1" BorderBrush="#30FFFFFF" BorderThickness="0,0,1,1" Padding="4,4">
                                             <StackPanel>
                                                 <TextBlock x:Name="HuangLiTaiShenLabel" Text="今日胎神" FontSize="10" Foreground="#B88A5A" />
-                                                <TextBlock x:Name="HuangLiTaiShenVal" FontSize="10" Foreground="#B8C0CC" Margin="0,2,0,0" TextWrapping="Wrap" />
+                                                <TextBlock x:Name="HuangLiTaiShenVal" FontSize="10" Foreground="#B8C0CC" Margin="0,2,0,0"
+                                                           TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" />
                                             </StackPanel>
                                         </Border>
                                         <Border x:Name="HuangLiXiongInner" Grid.Column="2" BorderBrush="#30FFFFFF" BorderThickness="0,0,0,1" Padding="4,4">
                                             <StackPanel>
                                                 <TextBlock x:Name="HuangLiXiongLabel" Text="凶神宜忌" FontSize="10" Foreground="#B88A5A" />
-                                                <TextBlock x:Name="HuangLiXiongVal" FontSize="10" Foreground="#B8C0CC" Margin="0,2,0,0" TextWrapping="Wrap" />
+                                                <TextBlock x:Name="HuangLiXiongVal" FontSize="10" Foreground="#B8C0CC" Margin="0,2,0,0"
+                                                           TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" />
                                             </StackPanel>
                                         </Border>
                                     </Grid>

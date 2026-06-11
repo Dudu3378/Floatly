@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using DeskLite.Models;
 using WpfButton = System.Windows.Controls.Button;
 using WpfTextBox = System.Windows.Controls.TextBox;
 
@@ -7,7 +8,29 @@ namespace DeskLite.Services;
 
 public static class FontScaleHelper
 {
+    public const double BaseFontSizePt = 12;
+    public const int MinFontSizePt = 10;
+    public const int MaxFontSizePt = 16;
+
     public static double ClampScale(double scale) => Math.Clamp(scale, 0.85, 1.35);
+
+    public static int ScaleToPt(double scale) =>
+        (int)Math.Clamp(Math.Round(ClampScale(scale) * BaseFontSizePt), MinFontSizePt, MaxFontSizePt);
+
+    public static double PtToScale(int pt) =>
+        ClampScale(pt / BaseFontSizePt);
+
+    public static int ResolvePt(AppSettings settings) =>
+        settings.FontSizePt is >= MinFontSizePt and <= MaxFontSizePt
+            ? settings.FontSizePt.Value
+            : ScaleToPt(settings.FontScale);
+
+    public static void NormalizeFontSettings(AppSettings settings)
+    {
+        var pt = ResolvePt(settings);
+        settings.FontSizePt = pt;
+        settings.FontScale = PtToScale(pt);
+    }
 
     public static void Apply(MainWindow window, double scale)
     {

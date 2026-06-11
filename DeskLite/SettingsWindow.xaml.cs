@@ -8,24 +8,14 @@ namespace DeskLite;
 public partial class SettingsWindow : Window
 {
     private sealed record ModuleOrderItem(string Id, string DisplayName);
-    private static readonly (string Label, double Value)[] OpacityPresets =
-    [
-        ("不透明 (100%)", 1.0),
-        ("轻微透明 (85%)", 0.85),
-        ("半透明 (70%)", 0.70),
-        ("高透明 (55%)", 0.55)
-    ];
 
-    private static readonly (string Label, double Value)[] FontScalePresets =
-    [
-        ("小 (85%)", 0.85),
-        ("标准 (100%)", 1.0),
-        ("大 (115%)", 1.15),
-        ("特大 (130%)", 1.3)
-    ];
+    private const int MinOpacityPercent = 30;
+    private const int MaxOpacityPercent = 100;
 
     private readonly AppSettings _original;
     private readonly LocationService _locationService = new();
+    private bool _syncOpacity;
+    private bool _syncFontSize;
 
     public AppSettings? Result { get; private set; }
 
@@ -33,8 +23,7 @@ public partial class SettingsWindow : Window
     {
         InitializeComponent();
         _original = Clone(settings);
-        InitOpacityCombo();
-        InitFontScaleCombo();
+        FontScaleHelper.NormalizeFontSettings(_original);
         LoadFromSettings(_original);
     }
 
@@ -42,22 +31,6 @@ public partial class SettingsWindow : Window
     {
         var json = JsonSerializer.Serialize(settings);
         return JsonSerializer.Deserialize<AppSettings>(json) ?? new AppSettings();
-    }
-
-    private void InitOpacityCombo()
-    {
-        foreach (var (label, _) in OpacityPresets)
-        {
-            CmbOpacity.Items.Add(label);
-        }
-    }
-
-    private void InitFontScaleCombo()
-    {
-        foreach (var (label, _) in FontScalePresets)
-        {
-            CmbFontScale.Items.Add(label);
-        }
     }
 
     private void LoadFromSettings(AppSettings s)
@@ -78,27 +51,12 @@ public partial class SettingsWindow : Window
             RbThemeDark.IsChecked = true;
         }
 
-        var opacityIndex = 0;
-        for (var i = 0; i < OpacityPresets.Length; i++)
-        {
-            if (Math.Abs(s.Opacity - OpacityPresets[i].Value) < 0.001)
-            {
-                opacityIndex = i;
-                break;
-            }
-        }
-        CmbOpacity.SelectedIndex = opacityIndex;
+        var opacityPercent = (int)Math.Round(Math.Clamp(s.Opacity, MinOpacityPercent / 100.0, 1.0) * 100);
+        opacityPercent = Math.Clamp(opacityPercent, MinOpacityPercent, MaxOpacityPercent);
+        SetOpacityUi(opacityPercent);
 
-        var fontIndex = 1;
-        for (var i = 0; i < FontScalePresets.Length; i++)
-        {
-            if (Math.Abs(s.FontScale - FontScalePresets[i].Value) < 0.001)
-            {
-                fontIndex = i;
-                break;
-            }
-        }
-        CmbFontScale.SelectedIndex = fontIndex;
+        var fontPt = FontScaleHelper.ResolvePt(s);
+        SetFontSizeUi(fontPt);
 
         ChkShowWeather.IsChecked = s.ShowWeather;
         ChkShowCityName.IsChecked = s.ShowCityName;
@@ -126,6 +84,94 @@ public partial class SettingsWindow : Window
         LoadModuleOrder(s.ModuleOrder);
     }
 
+    private void SetOpacityUi(int percent)
+    {
+        _syncOpacity = true;
+        SliderOpacity.Value = percent;
+        TxtOpacity.Text = percent.ToString();
+        _syncOpacity = false;
+    }
+
+    private void SetFontSizeUi(int pt)
+    {
+        _syncFontSize = true;
+        SliderFontSize.Value = pt;
+        TxtFontSize.Text = $"{pt}pt";
+        _syncFontSize = false;
+    }
+
+    private int ReadOpacityPercent()
+    {
+        var text = TxtOpacity.Text.Trim().TrimEnd('%');
+        if (int.TryParse(text, out var value))
+        {
+            return Math.Clamp(value, MinOpacityPercent, MaxOpacityPercent);
+        }
+
+        return (int)SliderOpacity.Value;
+    }
+
+    private int ReadFontSizePt()
+    {
+        var text = TxtFontSize.Text.Trim().ToLowerInvariant().Replace("pt", string.Empty).Trim();
+        if (int.TryParse(text, out var value))
+        {
+            return Math.Clamp(value, FontScaleHelper.MinFontSizePt, FontScaleHelper.MaxFontSizePt);
+        }
+
+        return (int)SliderFontSize.Value;
+    }
+
+    private void SliderOpacity_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (_syncOpacity)
+        {
+            return;
+        }
+
+        SetOpacityUi((int)SliderOpacity.Value);
+    }
+
+    private void SliderFontSize_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (_syncFontSize)
+        {
+            return;
+        }
+
+        SetFontSizeUi((int)SliderFontSize.Value);
+    }
+
+    private void TxtOpacity_LostFocus(object sender, RoutedEventArgs e) => CommitOpacityText();
+
+    private void TxtOpacity_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (e.Key == System.Windows.Input.Key.Enter)
+        {
+            CommitOpacityText();
+        }
+    }
+
+    private void CommitOpacityText()
+    {
+        SetOpacityUi(ReadOpacityPercent());
+    }
+
+    private void TxtFontSize_LostFocus(object sender, RoutedEventArgs e) => CommitFontSizeText();
+
+    private void TxtFontSize_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (e.Key == System.Windows.Input.Key.Enter)
+        {
+            CommitFontSizeText();
+        }
+    }
+
+    private void CommitFontSizeText()
+    {
+        SetFontSizeUi(ReadFontSizePt());
+    }
+
     private AppSettings ReadToSettings()
     {
         var s = Clone(_original);
@@ -138,10 +184,10 @@ public partial class SettingsWindow : Window
         s.ShowSeconds = ChkShowSeconds.IsChecked == true;
 
         s.Theme = RbThemeLight.IsChecked == true ? "light" : "dark";
-        var opacityIndex = Math.Max(0, CmbOpacity.SelectedIndex);
-        s.Opacity = OpacityPresets[opacityIndex].Value;
-        var fontIndex = Math.Max(0, CmbFontScale.SelectedIndex);
-        s.FontScale = FontScalePresets[fontIndex].Value;
+        s.Opacity = ReadOpacityPercent() / 100.0;
+        var fontPt = ReadFontSizePt();
+        s.FontSizePt = fontPt;
+        s.FontScale = FontScaleHelper.PtToScale(fontPt);
 
         s.ShowWeather = ChkShowWeather.IsChecked == true;
         s.ShowCityName = ChkShowCityName.IsChecked == true;
