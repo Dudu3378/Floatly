@@ -73,14 +73,21 @@ public partial class MainWindow : Window
             OpenSettings,
             PromptAddTodo,
             ToggleTopmost,
+            ToggleAutoStart,
             SetCity,
             DetectLocationByIp,
+            ToggleWeather,
+            ToggleWeekStrip,
             SetCalendarWeek,
             SetCalendarMonth,
             JumpToCalendarDate,
             ResetCalendarToday,
+            ToggleModule,
             AddCountdown,
             ExportBackup,
+            SetTheme,
+            SetOpacity,
+            ToggleClickThrough,
             ExitApp);
 
         Closing += (_, e) =>
@@ -1130,7 +1137,7 @@ public partial class MainWindow : Window
 
         if (_settings.ClickThrough)
         {
-            _tray?.ShowBalloon("已开启鼠标穿透，窗口无法拖动。请在设置中关闭。");
+            _tray?.ShowBalloon("已开启鼠标穿透，窗口无法拖动。请从托盘菜单取消勾选「鼠标穿透」。");
         }
     }
 
