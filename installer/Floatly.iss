@@ -1,8 +1,8 @@
-﻿#define MyAppName "DeskLite"
+#define MyAppName "Floatly"
 #define MyAppVersion "1.0.0"
 #define MyAppPublisher "cass-2003"
 #define MyAppURL "https://github.com/cass-2003/Floatly"
-#define MyAppExeName "DeskLite.exe"
+#define MyAppExeName "Floatly.exe"
 
 [Setup]
 AppId={{A8F3C2E1-9B4D-4A7E-8F1C-2D5E6A9B0C3D}
@@ -17,8 +17,8 @@ DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
 OutputDir=..\release
-OutputBaseFilename=DeskLite-Setup-{#MyAppVersion}
-SetupIconFile=..\release\DeskLite\app.ico
+OutputBaseFilename=Floatly-Setup-{#MyAppVersion}
+SetupIconFile=..\release\Floatly\app.ico
 Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern
@@ -34,7 +34,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-Source: "..\release\DeskLite\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\release\Floatly\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
@@ -76,11 +76,10 @@ begin
   Result := True;
   if not IsDotNet8DesktopInstalled then
   begin
-    if MsgBox('DeskLite requires the .NET 8 Desktop Runtime (x64).' + #13#10 + #13#10 +
+    if MsgBox('Floatly requires the .NET 8 Desktop Runtime (x64).' + #13#10 + #13#10 +
       'Download: https://dotnet.microsoft.com/en-us/download/dotnet/8.0' + #13#10 + #13#10 +
       'Continue installation anyway?',
       mbConfirmation, MB_YESNO) = IDNO then
       Result := False;
   end;
 end;
-

@@ -1,7 +1,7 @@
 <div align="center">
-  <img src="DeskLite/Assets/app-icon.png" alt="DeskLite Logo" width="120" height="120">
+  <img src="DeskLite/Assets/app-icon.png" alt="Floatly Logo" width="120" height="120">
   
-  # DeskLite
+  # Floatly（浮岛）
   
   ### 🪶 轻量级 Windows 桌面小组件
   
@@ -108,8 +108,8 @@
 
 ```powershell
 # 克隆项目
-git clone <repository-url>
-cd tool/DeskLite
+git clone https://github.com/cass-2003/Floatly.git
+cd Floatly/DeskLite
 
 # 运行开发版
 dotnet run
@@ -123,7 +123,7 @@ cd DeskLite
 dotnet publish -c Release
 
 # 输出目录
-# DeskLite\bin\Release\net8.0-windows\publish\
+# DeskLite\bin\Release\net8.0-windows\publish\Floatly.exe
 ```
 
 ### 首次使用
@@ -162,14 +162,16 @@ dotnet publish -c Release
 
 ## 📂 数据存储
 
-应用数据保存在 `%AppData%\DeskLite\` 目录：
+应用数据保存在 `%AppData%\Floatly\` 目录：
 
 | 文件 | 说明 |
 |------|------|
 | `settings.json` | 窗口位置、主题、模块开关与顺序、城市等偏好配置 |
 | `data.json` | 待办、倒数日、速记便签等业务数据 |
 
-**💡 提示**：托盘菜单 → **导出数据备份** 可将 `data.json` 另存到桌面（`desk-lite-backup-日期.json`）。
+**💡 提示**：托盘菜单 → **导出数据备份** 可将 `data.json` 另存到桌面（`floatly-backup-日期.json`）。
+
+> 从旧版 DeskLite 升级时，首次启动会自动将 `%AppData%\DeskLite\` 中的设置与数据迁移到 `%AppData%\Floatly\`。
 
 ---
 

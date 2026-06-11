@@ -12,8 +12,9 @@ public static class JsonStore
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
     };
 
-    private static string DataDir =>
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "DeskLite");
+    private static bool _migrationChecked;
+
+    private static string DataDir => AppConstants.AppDataDir;
 
     private static string DataPath => Path.Combine(DataDir, "data.json");
     private static string SettingsPath => Path.Combine(DataDir, "settings.json");
@@ -78,6 +79,69 @@ public static class JsonStore
 
     private static void EnsureDir()
     {
+        MigrateLegacyDataIfNeeded();
         Directory.CreateDirectory(DataDir);
+    }
+
+    private static void MigrateLegacyDataIfNeeded()
+    {
+        if (_migrationChecked)
+        {
+            return;
+        }
+
+        _migrationChecked = true;
+
+        var legacyDir = AppConstants.LegacyAppDataDir;
+        var newDir = AppConstants.AppDataDir;
+
+        if (!Directory.Exists(legacyDir))
+        {
+            return;
+        }
+
+        Directory.CreateDirectory(newDir);
+
+        var hasNewSettings = File.Exists(Path.Combine(newDir, "settings.json"));
+        var hasNewData = File.Exists(Path.Combine(newDir, "data.json"));
+        if (hasNewSettings || hasNewData)
+        {
+            return;
+        }
+
+        foreach (var fileName in new[] { "settings.json", "data.json", "weather-cache.json" })
+        {
+            var src = Path.Combine(legacyDir, fileName);
+            var dest = Path.Combine(newDir, fileName);
+            if (File.Exists(src) && !File.Exists(dest))
+            {
+                File.Copy(src, dest);
+            }
+        }
+
+        var legacySkins = Path.Combine(legacyDir, "skins");
+        var newSkins = Path.Combine(newDir, "skins");
+        if (Directory.Exists(legacySkins) && !Directory.Exists(newSkins))
+        {
+            CopyDirectory(legacySkins, newSkins);
+        }
+    }
+
+    private static void CopyDirectory(string sourceDir, string destDir)
+    {
+        Directory.CreateDirectory(destDir);
+        foreach (var file in Directory.GetFiles(sourceDir))
+        {
+            var dest = Path.Combine(destDir, Path.GetFileName(file));
+            if (!File.Exists(dest))
+            {
+                File.Copy(file, dest);
+            }
+        }
+
+        foreach (var dir in Directory.GetDirectories(sourceDir))
+        {
+            CopyDirectory(dir, Path.Combine(destDir, Path.GetFileName(dir)));
+        }
     }
 }

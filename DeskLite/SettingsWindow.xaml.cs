@@ -307,7 +307,7 @@ public partial class SettingsWindow : Window
         var imported = SkinService.ImportSkinImage(dlg.FileName);
         if (imported is null)
         {
-            System.Windows.MessageBox.Show(this, "无法导入所选图片，请换一张 png/jpg/webp 图片。", "DeskLite",
+            System.Windows.MessageBox.Show(this, "无法导入所选图片，请换一张 png/jpg/webp 图片。", AppConstants.DisplayName,
                 MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
@@ -476,7 +476,7 @@ public partial class SettingsWindow : Window
     {
         if (string.IsNullOrWhiteSpace(TxtCity.Text) && ChkShowWeather.IsChecked == true && ChkAutoLocate.IsChecked != true)
         {
-            System.Windows.MessageBox.Show(this, "请填写城市名称，或开启自动定位。", "DeskLite", MessageBoxButton.OK, MessageBoxImage.Information);
+            System.Windows.MessageBox.Show(this, "请填写城市名称，或开启自动定位。", AppConstants.DisplayName, MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
 

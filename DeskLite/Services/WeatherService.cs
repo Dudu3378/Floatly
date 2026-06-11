@@ -11,7 +11,7 @@ public sealed class WeatherService
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
 
     private static string CachePath =>
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "DeskLite", "weather-cache.json");
+        Path.Combine(AppConstants.AppDataDir, "weather-cache.json");
 
     public WeatherCache? LoadCache()
     {

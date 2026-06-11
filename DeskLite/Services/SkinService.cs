@@ -13,7 +13,7 @@ public static class SkinService
     public const string ModeImage = "image";
 
     private static string SkinsDir =>
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "DeskLite", "skins");
+        Path.Combine(AppConstants.AppDataDir, "skins");
 
     public static string NormalizeMode(string? mode) => mode switch
     {

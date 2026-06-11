@@ -39,7 +39,7 @@ public sealed class TrayService : IDisposable
 
         _icon = new NotifyIcon
         {
-            Text = "DeskLite",
+            Text = AppConstants.DisplayName,
             Icon = AppIconService.LoadTrayIcon(),
             Visible = true
         };
@@ -85,7 +85,7 @@ public sealed class TrayService : IDisposable
         }
     }
 
-    public void ShowBalloon(string message, string title = "DeskLite")
+    public void ShowBalloon(string message, string title = AppConstants.DisplayName)
     {
         _icon.BalloonTipTitle = title;
         _icon.BalloonTipText = message;

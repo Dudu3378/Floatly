@@ -9,7 +9,11 @@
     <UseWindowsForms>true</UseWindowsForms>
     <ApplicationIcon>app.ico</ApplicationIcon>
     <RootNamespace>DeskLite</RootNamespace>
-    <AssemblyName>DeskLite</AssemblyName>
+    <AssemblyName>Floatly</AssemblyName>
+    <ApplicationTitle>Floatly</ApplicationTitle>
+    <AssemblyTitle>Floatly（浮岛）</AssemblyTitle>
+    <Product>Floatly（浮岛）</Product>
+    <Description>轻量级 Windows 桌面小组件</Description>
   </PropertyGroup>
 
   <ItemGroup>

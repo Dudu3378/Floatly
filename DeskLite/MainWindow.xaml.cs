@@ -1353,7 +1353,7 @@ public partial class MainWindow : Window
     {
         try
         {
-            var src = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "DeskLite", "data.json");
+            var src = Path.Combine(AppConstants.AppDataDir, "data.json");
             if (!File.Exists(src))
             {
                 _tray?.ShowBalloon("暂无数据可导出");
@@ -1362,7 +1362,7 @@ public partial class MainWindow : Window
 
             var dest = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
-                $"desk-lite-backup-{DateTime.Now:yyyyMMdd}.json");
+                $"{AppConstants.BackupFilePrefix}-{DateTime.Now:yyyyMMdd}.json");
             File.Copy(src, dest, true);
             _tray?.ShowBalloon($"已导出到桌面：{Path.GetFileName(dest)}");
         }
