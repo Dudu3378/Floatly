@@ -108,6 +108,7 @@ public partial class SettingsWindow : Window
     {
         ChkAlwaysOnTop.IsChecked = s.AlwaysOnTop;
         ChkAutoStart.IsChecked = s.AutoStart;
+        ChkTopAutoHide.IsChecked = s.EnableTopAutoHide;
         ChkClickThrough.IsChecked = s.ClickThrough;
         ChkGlobalHotkey.IsChecked = s.EnableGlobalHotkey;
         TxtHotkeyShowHide.Text = HotkeyComboHelper.Sanitize(s.HotkeyShowHide, HotkeyComboHelper.DefaultShowHide);
@@ -139,6 +140,7 @@ public partial class SettingsWindow : Window
             RbThemeDark.IsChecked = true;
         }
 
+        ApplySettingsThemeResources();
         UpdateThemeCards();
 
         var opacityPercent = (int)Math.Round(Math.Clamp(s.Opacity, MinOpacityPercent / 100.0, 1.0) * 100);
@@ -209,12 +211,14 @@ public partial class SettingsWindow : Window
     private void ThemeDarkCard_Click(object sender, MouseButtonEventArgs e)
     {
         RbThemeDark.IsChecked = true;
+        ApplySettingsThemeResources();
         UpdateThemeCards();
     }
 
     private void ThemeLightCard_Click(object sender, MouseButtonEventArgs e)
     {
         RbThemeLight.IsChecked = true;
+        ApplySettingsThemeResources();
         UpdateThemeCards();
     }
 
@@ -229,6 +233,39 @@ public partial class SettingsWindow : Window
             : (System.Windows.Media.Brush)FindResource("SettingsAccent");
         ThemeDarkCheck.Visibility = dark ? Visibility.Visible : Visibility.Collapsed;
         ThemeLightCheck.Visibility = dark ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    private void ApplySettingsThemeResources()
+    {
+        var light = RbThemeLight.IsChecked == true;
+        SetBrush("SettingsBg", light ? "#F3F6FA" : "#0F1419");
+        SetBrush("SettingsSidebarBg", light ? "#E7ECF3" : "#0A0E14");
+        SetBrush("SettingsCardBg", light ? "#FFFFFF" : "#161922");
+        SetBrush("SettingsCardBorder", light ? "#D9E1EC" : "#14FFFFFF");
+        SetBrush("SettingsText", light ? "#111827" : "#FFFFFF");
+        SetBrush("SettingsMuted", light ? "#4B5563" : "#A6FFFFFF");
+        SetBrush("SettingsInputBg", light ? "#F8FAFC" : "#1E2430");
+        SetBrush("SettingsBorder", light ? "#CBD5E1" : "#24FFFFFF");
+        SetBrush("SettingsAccent", "#5C8DFF");
+        SetBrush("SettingsAccentDim", light ? "#DCE8FF" : "#335C8DFF");
+        SetBrush("SettingsHoverBg", light ? "#E2E8F0" : "#18FFFFFF");
+        Background = (System.Windows.Media.Brush)FindResource("SettingsBg");
+        Foreground = (System.Windows.Media.Brush)FindResource("SettingsText");
+    }
+
+    private void SetBrush(string key, string hex)
+    {
+        var color = (WpfColor)System.Windows.Media.ColorConverter.ConvertFromString(hex);
+        if (Resources[key] is SolidColorBrush brush)
+        {
+            if (!brush.IsFrozen)
+            {
+                brush.Color = color;
+                return;
+            }
+        }
+
+        Resources[key] = new SolidColorBrush(color);
     }
 
     private void SkinToggle_Click(object sender, RoutedEventArgs e)
@@ -469,6 +506,17 @@ public partial class SettingsWindow : Window
         return (int)SliderSkinOverlay.Value;
     }
 
+    private int ReadOpacityPercent()
+    {
+        var text = TxtOpacity.Text.Trim().TrimEnd('%');
+        if (int.TryParse(text, out var value))
+        {
+            return Math.Clamp(value, MinOpacityPercent, MaxOpacityPercent);
+        }
+
+        return (int)SliderOpacity.Value;
+    }
+
     private void SetFontSizeUi(int pt)
     {
         if (SliderFontSize is null || TxtFontSize is null)
@@ -480,17 +528,6 @@ public partial class SettingsWindow : Window
         SliderFontSize.Value = pt;
         TxtFontSize.Text = $"{pt} pt";
         _syncFontSize = false;
-    }
-
-    private int ReadOpacityPercent()
-    {
-        var text = TxtOpacity.Text.Trim().TrimEnd('%');
-        if (int.TryParse(text, out var value))
-        {
-            return Math.Clamp(value, MinOpacityPercent, MaxOpacityPercent);
-        }
-
-        return (int)SliderOpacity.Value;
     }
 
     private int ReadFontSizePt()
@@ -786,6 +823,7 @@ public partial class SettingsWindow : Window
 
         s.AlwaysOnTop = ChkAlwaysOnTop.IsChecked == true;
         s.AutoStart = ChkAutoStart.IsChecked == true;
+        s.EnableTopAutoHide = ChkTopAutoHide.IsChecked == true;
         s.ClickThrough = ChkClickThrough.IsChecked == true;
         s.EnableGlobalHotkey = ChkGlobalHotkey.IsChecked == true;
         s.HotkeyShowHide = HotkeyComboHelper.Sanitize(TxtHotkeyShowHide.Text, HotkeyComboHelper.DefaultShowHide);

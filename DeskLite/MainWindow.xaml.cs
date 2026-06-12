@@ -22,6 +22,7 @@ public partial class MainWindow : Window
     private readonly PomodoroService _pomodoro = new();
     private readonly AppSettings _settings;
     private readonly DispatcherTimer _clockTimer;
+    private readonly DispatcherTimer _topAutoHideTimer;
     private DateTime _lastWeatherFetch = DateTime.MinValue;
     private DateTime? _calendarPreviewDate;
     private CalendarViewMode _calendarMode = CalendarViewMode.Week;
@@ -30,7 +31,10 @@ public partial class MainWindow : Window
     private GlobalHotkeyService? _hotkeyService;
     private AppThemePalette _palette = AppThemePalette.For(ThemeMode.Dark);
     private bool _suppressSizePersist;
+    private bool _suppressPositionPersist;
     private bool _isExiting;
+    private bool _isAutoHiddenTop;
+    private bool _pendingTopAutoHide;
     private double _expandedTop;
     private TodoListWindow? _todoListWindow;
     private ScratchPadWindow? _scratchPadWindow;
@@ -39,6 +43,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        NormalizeStaticUiText();
 
         if (AppIconService.GetIconUri() is { } iconUri)
         {
@@ -76,6 +81,10 @@ public partial class MainWindow : Window
         };
         _clockTimer.Start();
 
+        _topAutoHideTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(120) };
+        _topAutoHideTimer.Tick += (_, _) => CheckTopAutoHideHover();
+        _topAutoHideTimer.Start();
+
         _tray = new TrayService(
             this,
             OpenSettings,
@@ -99,8 +108,41 @@ public partial class MainWindow : Window
         };
 
         IsVisibleChanged += (_, _) => UpdateSkinVideoPlayback();
-        LocationChanged += (_, _) => SaveWindowPosition();
+        LocationChanged += (_, _) =>
+        {
+            if (!_suppressPositionPersist)
+            {
+                SaveWindowPosition();
+            }
+        };
         SizeChanged += OnWindowSizeChanged;
+    }
+
+    private void NormalizeStaticUiText()
+    {
+        DateText.Text = "2026年6月1日 周四";
+        CityText.Text = "📍 东京 Tokyo";
+        LunarText.Text = "农历五月初六 · 芒种";
+        LunarSubText.Text = "乙巳年 · 属蛇";
+        WeatherIconText.Text = "⛅";
+        WeatherTempText.Text = "25°";
+        WeatherDescText.Text = "多云";
+        WeatherRangeText.Text = "17°~26°";
+        WeatherFeelsText.Text = "体感 26°";
+        PinBtn.Content = "📌";
+        PinBtn.ToolTip = "置顶";
+        SettingsBtn.Content = "⚙";
+        SettingsBtn.ToolTip = "设置";
+        MoreBtn.Content = "⋯";
+        MoreBtn.ToolTip = "更多";
+        SunriseLineText.Text = "🌅 日出 04:24";
+        SunsetLineText.Text = "🌇 日落 18:56";
+        TomorrowLineText.Text = "明天 19°~28°";
+        PomodoroPhaseText.Text = "番茄钟";
+        PomodoroSessionText.Text = "准备开始";
+        PomodoroStartBtn.Content = "开始专注";
+        PomodoroResetBtn.Content = "重置";
+        ToolbarPinBtn.Content = "📌 置顶";
     }
 
     private void Window_SourceInitialized(object? sender, EventArgs e)
@@ -188,14 +230,6 @@ public partial class MainWindow : Window
 
     private void SyncBottomToolbar()
     {
-        OpacitySlider.ValueChanged -= OpacitySlider_ValueChanged;
-        FontSizeSlider.ValueChanged -= FontSizeSlider_ValueChanged;
-        OpacitySlider.Value = Math.Round(_settings.Opacity * 100);
-        FontSizeSlider.Value = FontScaleHelper.ResolvePt(_settings);
-        OpacitySlider.ValueChanged += OpacitySlider_ValueChanged;
-        FontSizeSlider.ValueChanged += FontSizeSlider_ValueChanged;
-        OpacityValueText.Text = $"{(int)OpacitySlider.Value}%";
-        FontSizeValueText.Text = $"{(int)FontSizeSlider.Value}px";
         ClickThroughToggle.IsChecked = _settings.ClickThrough;
         ThemeToggleBtn.Content = AppThemePalette.Parse(_settings.Theme) == ThemeMode.Light ? "☀" : "🌙";
         ToolbarPinBtn.Foreground = Topmost ? Brush(FloatlyDesignTokens.AccentBlue) : Brush(_palette.TextSecondary);
@@ -259,8 +293,11 @@ public partial class MainWindow : Window
 
     private void ApplyTheme()
     {
-        _palette = AppThemePalette.For(AppThemePalette.Parse(_settings.Theme));
-        var textPrimary = FontColorHelper.ResolvePrimary(_palette.TextPrimary, _settings.PrimaryTextColor);
+        var theme = AppThemePalette.Parse(_settings.Theme);
+        _palette = AppThemePalette.For(theme);
+        var textPrimary = theme == ThemeMode.Light
+            ? _palette.TextPrimary
+            : FontColorHelper.ResolvePrimary(_palette.TextPrimary, _settings.PrimaryTextColor);
 
         MainBorder.Background = SkinService.CreatePanelBackground(_settings, _palette);
         MainBorder.BorderBrush = new SolidColorBrush(_palette.PanelBorder);
@@ -274,7 +311,7 @@ public partial class MainWindow : Window
         DateText.Foreground = Brush(_palette.TextSecondary);
         LunarText.Foreground = Brush(_palette.TextTertiary);
         LunarSubText.Foreground = Brush(_palette.TextSubtle);
-        HeaderBlock.Background = Brush(FloatlyDesignTokens.CardBackground);
+        HeaderBlock.Background = Brush(_palette.HeaderBackground);
         HeaderBlock.BorderBrush = Brush(_palette.PanelBorder);
         ApplyHuangLiTheme();
         WeatherTempText.Foreground = Brush(textPrimary);
@@ -287,10 +324,14 @@ public partial class MainWindow : Window
         SunsetLineText.Foreground = Brush(_palette.TextSubtle);
         TomorrowLineText.Foreground = Brush(_palette.TextSubtle);
         PinBtn.Foreground = Topmost ? Brush(FloatlyDesignTokens.AccentBlue) : Brush(_palette.TextSecondary);
+        SettingsBtn.Foreground = Brush(_palette.TextSecondary);
+        MoreBtn.Foreground = Brush(_palette.TextSecondary);
         ApplyProgressTheme(textPrimary);
         ApplySalaryTheme();
         ApplyPomodoroTheme(textPrimary);
         DailyQuoteText.Foreground = Brush(_palette.TextMuted);
+        BottomToolbar.Background = Brush(_palette.ToolbarBackground);
+        BottomToolbar.BorderBrush = Brush(_palette.PanelBorder);
         TodoTitleText.Foreground = Brush(_palette.TextMuted);
         EmptyTodoText.Foreground = Brush(_palette.TextEmpty);
         TodoCountBadge.Background = Brush(_palette.TodoCountBadge);
@@ -308,6 +349,18 @@ public partial class MainWindow : Window
         NewTodoBox.Foreground = Brush(_palette.InputText);
         AddButton.Background = Brush(_palette.TodoAccentButton);
         AddButton.Foreground = System.Windows.Media.Brushes.White;
+        ThemeToggleBtn.Foreground = Brush(_palette.TextSecondary);
+        ToolbarPinBtn.Foreground = Topmost ? Brush(FloatlyDesignTokens.AccentBlue) : Brush(_palette.TextSecondary);
+        if (theme == ThemeMode.Light)
+        {
+            foreach (var text in FindVisualChildren<TextBlock>(this))
+            {
+                if (IsInsideThemedCard(text) && IsHardCodedLightForeground(text.Foreground))
+                {
+                    text.Foreground = Brush(_palette.TextSecondary);
+                }
+            }
+        }
         ScratchTitleText.Foreground = Brush(_palette.TextMuted);
         ScratchCountBadge.Background = Brush(_palette.TodoCountBadge);
         ScratchCountText.Foreground = Brush(_palette.Accent);
@@ -321,7 +374,11 @@ public partial class MainWindow : Window
 
         Resources["TodoTextBrush"] = Brush(_palette.TodoText);
         Resources["TodoDeleteBrush"] = Brush(_palette.DeleteButton);
+        Resources["FloatlyCardBgBrush"] = Brush(_palette.TodoCardBackground);
+        Resources["FloatlyCardBorderBrush"] = Brush(_palette.TodoCardBorder);
+        Resources["CardTitleBrush"] = Brush(_palette.TextMuted);
         TodoThemeHelper.ApplyResources(Resources, _palette);
+        ApplyFloatlyCardTheme(this);
 
         RefreshCalendar();
         RefreshTodoTheme();
@@ -353,7 +410,7 @@ public partial class MainWindow : Window
         ContentBackdrop.Visibility = useBackdrop ? Visibility.Visible : Visibility.Collapsed;
         if (useBackdrop)
         {
-            ContentBackdrop.Background = new SolidColorBrush(FloatlyDesignTokens.ContentBackdrop);
+            ContentBackdrop.Background = Brush(_palette.ContentBackdrop);
         }
     }
 
@@ -453,31 +510,227 @@ public partial class MainWindow : Window
         ApplyWindowOpacity(IsMouseOver);
         JsonStore.SaveSettings(_settings);
         _tray?.RefreshMenu();
-        if (IsLoaded)
+    }
+
+    private bool IsInsideThemedCard(DependencyObject source)
+    {
+        var cardStyle = TryFindResource("FloatlyCard") as Style;
+        var current = source;
+        while (current is not null)
         {
-            OpacitySlider.ValueChanged -= OpacitySlider_ValueChanged;
-            OpacitySlider.Value = Math.Round(_settings.Opacity * 100);
-            OpacityValueText.Text = $"{(int)OpacitySlider.Value}%";
-            OpacitySlider.ValueChanged += OpacitySlider_ValueChanged;
+            if (current is Border border && ReferenceEquals(border.Style, cardStyle))
+            {
+                return true;
+            }
+
+            current = VisualTreeHelper.GetParent(current);
+        }
+
+        return false;
+    }
+
+    private static bool IsHardCodedLightForeground(System.Windows.Media.Brush brush)
+    {
+        if (brush is not SolidColorBrush solid)
+        {
+            return false;
+        }
+
+        var color = solid.Color;
+        return color.R > 150 && color.G > 150 && color.B > 150;
+    }
+
+    private void ApplyFloatlyCardTheme(DependencyObject parent)
+    {
+        var cardStyle = TryFindResource("FloatlyCard") as Style;
+        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+        {
+            var child = VisualTreeHelper.GetChild(parent, i);
+            if (child is Border border && ReferenceEquals(border.Style, cardStyle))
+            {
+                border.Background = Brush(_palette.TodoCardBackground);
+                border.BorderBrush = Brush(_palette.TodoCardBorder);
+            }
+
+            ApplyFloatlyCardTheme(child);
         }
     }
 
     private void ApplyWindowOpacity(bool isMouseOver)
     {
-        var opacity = _settings.EnableHoverOpacity && !isMouseOver
-            ? _settings.InactiveOpacity
-            : _settings.Opacity;
-
-        Opacity = Math.Clamp(opacity, 0.30, 1.0);
+        Opacity = Math.Clamp(_settings.Opacity, 0.30, 1.0);
     }
 
     private void ApplyLockState()
     {
+        if (_settings.WindowLocked || Topmost || _settings.AlwaysOnTop)
+        {
+            _pendingTopAutoHide = false;
+            ExpandFromTopAutoHide();
+        }
+
         _settings.ClickThrough = false;
         WindowHelper.SetClickThrough(this, enabled: false);
         ContentRoot.Cursor = _settings.WindowLocked
             ? System.Windows.Input.Cursors.Arrow
             : System.Windows.Input.Cursors.SizeAll;
+    }
+
+    private void MainBorder_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
+    {
+        ExpandFromTopAutoHide();
+    }
+
+    private void MainBorder_MouseLeave(object sender, System.Windows.Input.MouseEventArgs e)
+    {
+        CollapseToTopAutoHide();
+    }
+
+    private bool CanTopAutoHide()
+    {
+        var workArea = GetCurrentWorkAreaDip();
+        return _settings.EnableTopAutoHide
+            && !_settings.WindowLocked
+            && !Topmost
+            && !_settings.AlwaysOnTop
+            && IsVisible
+            && WindowState == WindowState.Normal
+            && !_settings.ClickThrough
+            && (_expandedTop <= workArea.Top + 40 || Top <= workArea.Top + 40);
+    }
+
+    private void CollapseToTopAutoHide()
+    {
+        if (_isAutoHiddenTop || !CanTopAutoHide() || ActualHeight <= 12)
+        {
+            return;
+        }
+
+        var workArea = GetCurrentWorkAreaDip();
+        _expandedTop = workArea.Top;
+        MoveWindowWithoutPersist(workArea.Top - Math.Max(ActualHeight - 8, 0));
+        _isAutoHiddenTop = true;
+        _pendingTopAutoHide = false;
+    }
+
+    private void ExpandFromTopAutoHide()
+    {
+        if (!_isAutoHiddenTop)
+        {
+            return;
+        }
+
+        MoveWindowWithoutPersist(_expandedTop);
+        _isAutoHiddenTop = false;
+        SaveWindowPosition();
+    }
+
+    private void MoveWindowWithoutPersist(double top)
+    {
+        _suppressPositionPersist = true;
+        Top = top;
+        _suppressPositionPersist = false;
+    }
+
+    private void CheckTopAutoHideHover()
+    {
+        if (_settings.WindowLocked || Topmost || _settings.AlwaysOnTop || !IsVisible || WindowState != WindowState.Normal)
+        {
+            _pendingTopAutoHide = false;
+            if (_isAutoHiddenTop)
+            {
+                ExpandFromTopAutoHide();
+            }
+
+            return;
+        }
+
+        var mouse = GetMousePositionDip();
+        var workArea = GetCurrentWorkAreaDip();
+        if (_isAutoHiddenTop)
+        {
+            var withinWindowWidth = mouse.X >= Left && mouse.X <= Left + ActualWidth;
+            var nearTopEdge = mouse.Y >= workArea.Top && mouse.Y <= workArea.Top + 22;
+            if (withinWindowWidth && nearTopEdge)
+            {
+                ExpandFromTopAutoHide();
+            }
+
+            return;
+        }
+
+        if (CanTopAutoHide() && !IsMouseInsideWindow(mouse))
+        {
+            CollapseToTopAutoHide();
+        }
+    }
+
+    private void ScheduleTopAutoHide()
+    {
+        if (!CanTopAutoHide())
+        {
+            return;
+        }
+
+        var workArea = GetCurrentWorkAreaDip();
+        _expandedTop = workArea.Top;
+        MoveWindowWithoutPersist(workArea.Top);
+        SaveWindowPosition();
+        _pendingTopAutoHide = true;
+
+        var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(600) };
+        timer.Tick += (_, _) =>
+        {
+            timer.Stop();
+            if (_pendingTopAutoHide && CanTopAutoHide() && !_isAutoHiddenTop)
+            {
+                CollapseToTopAutoHide();
+            }
+        };
+        timer.Start();
+    }
+
+    private bool IsMouseInsideWindow(System.Windows.Point mouse)
+    {
+        return mouse.X >= Left
+            && mouse.X <= Left + ActualWidth
+            && mouse.Y >= Top
+            && mouse.Y <= Top + ActualHeight;
+    }
+
+    private System.Windows.Point GetMousePositionDip()
+    {
+        var position = System.Windows.Forms.Cursor.Position;
+        var point = new System.Windows.Point(position.X, position.Y);
+        var source = PresentationSource.FromVisual(this);
+        return source?.CompositionTarget is null
+            ? point
+            : source.CompositionTarget.TransformFromDevice.Transform(point);
+    }
+
+    private Rect GetCurrentWorkAreaDip()
+    {
+        var handle = new System.Windows.Interop.WindowInteropHelper(this).Handle;
+        var screen = handle == IntPtr.Zero
+            ? System.Windows.Forms.Screen.PrimaryScreen
+            : System.Windows.Forms.Screen.FromHandle(handle);
+        screen ??= System.Windows.Forms.Screen.AllScreens.FirstOrDefault();
+        if (screen is null)
+        {
+            return new Rect(0, 0, SystemParameters.WorkArea.Width, SystemParameters.WorkArea.Height);
+        }
+
+        var area = screen.WorkingArea;
+        var topLeft = new System.Windows.Point(area.Left, area.Top);
+        var bottomRight = new System.Windows.Point(area.Right, area.Bottom);
+        var source = PresentationSource.FromVisual(this);
+        if (source?.CompositionTarget is not null)
+        {
+            topLeft = source.CompositionTarget.TransformFromDevice.Transform(topLeft);
+            bottomRight = source.CompositionTarget.TransformFromDevice.Transform(bottomRight);
+        }
+
+        return new Rect(topLeft, bottomRight);
     }
 
     public void ToggleModule(string key)
@@ -980,13 +1233,15 @@ public partial class MainWindow : Window
 
     private void ApplyPomodoroTheme(System.Windows.Media.Color textPrimary)
     {
-        PomodoroPanel.Background = Brush(_palette.HuangLiMutedButton);
+        PomodoroPanel.Background = System.Windows.Media.Brushes.Transparent;
         PomodoroPhaseText.Foreground = Brush(_palette.TextMuted);
         PomodoroSessionText.Foreground = Brush(_palette.TextSubtle);
         PomodoroCountdownText.Foreground = Brush(textPrimary);
         PomodoroTrack.Background = Brush(_palette.ProgressTrack);
+        PomodoroRingTrack.Stroke = Brush(_palette.ProgressTrack);
         PomodoroStartBtn.Background = Brush(_palette.TodoAccentButton);
         PomodoroStartBtn.Foreground = System.Windows.Media.Brushes.White;
+        PomodoroResetBtn.Background = System.Windows.Media.Brushes.Transparent;
         PomodoroResetBtn.Foreground = Brush(_palette.TodoLink);
         PomodoroResetBtn.BorderBrush = Brush(_palette.InputBorder);
         RefreshPomodoroUi();
@@ -1796,6 +2051,7 @@ public partial class MainWindow : Window
     {
         _settings.AlwaysOnTop = !Topmost;
         Topmost = _settings.AlwaysOnTop;
+        ApplyLockState();
         JsonStore.SaveSettings(_settings);
         _tray?.RefreshMenu();
         SyncBottomToolbar();
@@ -1844,11 +2100,20 @@ public partial class MainWindow : Window
             return;
         }
 
-        _settingsWindow = new SettingsWindow(_settings)
+        try
         {
-            Owner = this,
-            ShowInTaskbar = true
-        };
+            _settingsWindow = new SettingsWindow(_settings)
+            {
+                Owner = this,
+                ShowInTaskbar = true
+            };
+        }
+        catch (Exception ex)
+        {
+            System.Windows.MessageBox.Show(this, $"设置窗口打开失败：{ex.Message}", AppConstants.DisplayName,
+                MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
         _settingsWindow.SettingsApplied += (_, next) =>
         {
             CommitSettings(next);
@@ -2150,8 +2415,14 @@ public partial class MainWindow : Window
 
     private void SaveWindowPosition()
     {
+        if (_isAutoHiddenTop)
+        {
+            return;
+        }
+
         _settings.Left = Left;
         _settings.Top = Top;
+        _expandedTop = Top;
         if (ActualWidth > 0 && ActualHeight > 0)
         {
             _settings.WindowWidth = Width;
@@ -2173,6 +2444,8 @@ public partial class MainWindow : Window
 
     private void HandleWindowDrag(System.Windows.Input.MouseButtonEventArgs e)
     {
+        ExpandFromTopAutoHide();
+
         if (e.ClickCount >= 2 && IsInHeaderArea(e.OriginalSource as DependencyObject))
         {
             ToggleClickThrough();
@@ -2185,9 +2458,17 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (_settings.WindowLocked)
+        {
+            e.Handled = true;
+            return;
+        }
+
         try
         {
             DragMove();
+            SaveWindowPosition();
+            ScheduleTopAutoHide();
         }
         catch
         {
@@ -2381,34 +2662,6 @@ public partial class MainWindow : Window
             MainBorder.ContextMenu.PlacementTarget = HeaderBlock;
             MainBorder.ContextMenu.IsOpen = true;
         }
-    }
-
-    private void OpacitySlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-    {
-        if (!IsLoaded)
-        {
-            return;
-        }
-
-        var value = Math.Round(e.NewValue) / 100.0;
-        OpacityValueText.Text = $"{(int)e.NewValue}%";
-        SetOpacity(value);
-    }
-
-    private void FontSizeSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-    {
-        if (!IsLoaded)
-        {
-            return;
-        }
-
-        var pt = (int)e.NewValue;
-        FontSizeValueText.Text = $"{pt}px";
-        _settings.FontSizePt = pt;
-        _settings.FontScale = FontScaleHelper.PtToScale(pt);
-        FontFamilyHelper.Apply(this, _settings.FontFamily);
-        FontScaleHelper.Apply(this, _settings.FontScale);
-        JsonStore.SaveSettings(_settings);
     }
 
     private void ThemeToggleBtn_Click(object sender, RoutedEventArgs e)

@@ -12,6 +12,9 @@ public sealed class AppThemePalette
 {
     public required WpfColor PanelBackground { get; init; }
     public required WpfColor PanelBorder { get; init; }
+    public required WpfColor ContentBackdrop { get; init; }
+    public required WpfColor HeaderBackground { get; init; }
+    public required WpfColor ToolbarBackground { get; init; }
     public required WpfColor Divider { get; init; }
     public required WpfColor TextPrimary { get; init; }
     public required WpfColor TextSecondary { get; init; }
@@ -78,6 +81,9 @@ public sealed class AppThemePalette
     {
         PanelBackground = WpfColor.FromArgb(0xD9, 0x13, 0x17, 0x22),
         PanelBorder = WpfColor.FromArgb(0x0D, 0xFF, 0xFF, 0xFF),
+        ContentBackdrop = WpfColor.FromArgb(0xE6, 0x10, 0x14, 0x1C),
+        HeaderBackground = WpfColor.FromArgb(0x18, 0xFF, 0xFF, 0xFF),
+        ToolbarBackground = WpfColor.FromArgb(0xD0, 0x1A, 0x1F, 0x28),
         Divider = WpfColor.FromArgb(0x28, 0xFF, 0xFF, 0xFF),
         TextPrimary = WpfColor.FromRgb(0xF5, 0xF7, 0xFA),
         TextSecondary = WpfColor.FromRgb(0xB8, 0xC0, 0xCC),
@@ -134,6 +140,9 @@ public sealed class AppThemePalette
     {
         PanelBackground = WpfColor.FromArgb(0xE8, 0xFF, 0xFF, 0xFF),
         PanelBorder = WpfColor.FromArgb(0x40, 0x15, 0x23, 0x42),
+        ContentBackdrop = WpfColor.FromArgb(0xF2, 0xF8, 0xFA, 0xFC),
+        HeaderBackground = WpfColor.FromArgb(0xFF, 0xFF, 0xFF, 0xFF),
+        ToolbarBackground = WpfColor.FromArgb(0xF4, 0xFF, 0xFF, 0xFF),
         Divider = WpfColor.FromArgb(0x28, 0x15, 0x23, 0x42),
         TextPrimary = WpfColor.FromRgb(0x0F, 0x17, 0x2A),
         TextSecondary = WpfColor.FromRgb(0x47, 0x55, 0x69),
@@ -143,9 +152,9 @@ public sealed class AppThemePalette
         TextEmpty = WpfColor.FromRgb(0x94, 0xA3, 0xB8),
         TodoText = WpfColor.FromRgb(0x1E, 0x29, 0x3B),
         DeleteButton = WpfColor.FromRgb(0x94, 0xA3, 0xB8),
-        TodoCardBackground = WpfColor.FromArgb(0x0C, 0x15, 0x23, 0x42),
-        TodoCardBorder = WpfColor.FromArgb(0x28, 0x15, 0x23, 0x42),
-        TodoCardHover = WpfColor.FromArgb(0x18, 0x15, 0x23, 0x42),
+        TodoCardBackground = WpfColor.FromRgb(0xFF, 0xFF, 0xFF),
+        TodoCardBorder = WpfColor.FromRgb(0xD8, 0xE0, 0xEA),
+        TodoCardHover = WpfColor.FromRgb(0xF1, 0xF5, 0xF9),
         TodoTimeBadge = WpfColor.FromArgb(0x18, 0x25, 0x63, 0xEB),
         TodoPinActive = WpfColor.FromRgb(0xD9, 0x77, 0x06),
         TodoPinInactive = WpfColor.FromRgb(0x94, 0xA3, 0xB8),

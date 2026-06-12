@@ -26,10 +26,13 @@
         <SolidColorBrush x:Key="TodoMutedBrush" Color="#8B95A5" />
         <SolidColorBrush x:Key="TodoEmptyBrush" Color="#6B7280" />
         <SolidColorBrush x:Key="TodoAccentBrush" Color="#5C8DFF" />
+        <SolidColorBrush x:Key="FloatlyCardBgBrush" Color="#E8161922" />
+        <SolidColorBrush x:Key="FloatlyCardBorderBrush" Color="#0DFFFFFF" />
+        <SolidColorBrush x:Key="CardTitleBrush" Color="#A6FFFFFF" />
 
         <Style x:Key="FloatlyCard" TargetType="Border">
-            <Setter Property="Background" Value="#E8161922" />
-            <Setter Property="BorderBrush" Value="#0DFFFFFF" />
+            <Setter Property="Background" Value="{DynamicResource FloatlyCardBgBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource FloatlyCardBorderBrush}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="14" />
             <Setter Property="Padding" Value="12" />
@@ -56,7 +59,7 @@
         <Style x:Key="CardTitle" TargetType="TextBlock">
             <Setter Property="FontSize" Value="13" />
             <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Foreground" Value="#A6FFFFFF" />
+            <Setter Property="Foreground" Value="{DynamicResource CardTitleBrush}" />
         </Style>
     </Window.Resources>
 
@@ -65,6 +68,8 @@
             CornerRadius="16"
             BorderBrush="#0DFFFFFF"
             BorderThickness="1"
+            MouseEnter="MainBorder_MouseEnter"
+            MouseLeave="MainBorder_MouseLeave"
             ClipToBounds="True">
         <Border.ContextMenu>
             <ContextMenu>
@@ -583,20 +588,8 @@
                 </ScrollViewer>
 
                 <!-- Bottom toolbar -->
-                <Border Grid.Row="2" x:Name="BottomToolbar" Background="#D01A1F28" CornerRadius="10" Padding="10,8" Margin="0,10,0,6">
+                <Border Grid.Row="2" x:Name="BottomToolbar" Background="#D01A1F28" BorderThickness="1" CornerRadius="10" Padding="10,8" Margin="0,10,0,6">
                     <StackPanel>
-                        <Grid Margin="0,0,0,6">
-                            <TextBlock Text="透明度" FontSize="10" Foreground="#8B95A5" VerticalAlignment="Center" />
-                            <TextBlock x:Name="OpacityValueText" Text="100%" FontSize="10" Foreground="#A6FFFFFF" HorizontalAlignment="Right" />
-                        </Grid>
-                        <Slider x:Name="OpacitySlider" Minimum="30" Maximum="100" Value="100"
-                                ValueChanged="OpacitySlider_ValueChanged" Margin="0,0,0,8" />
-                        <Grid Margin="0,0,0,6">
-                            <TextBlock Text="字体大小" FontSize="10" Foreground="#8B95A5" VerticalAlignment="Center" />
-                            <TextBlock x:Name="FontSizeValueText" Text="12px" FontSize="10" Foreground="#A6FFFFFF" HorizontalAlignment="Right" />
-                        </Grid>
-                        <Slider x:Name="FontSizeSlider" Minimum="10" Maximum="16" Value="12" TickFrequency="1" IsSnapToTickEnabled="True"
-                                ValueChanged="FontSizeSlider_ValueChanged" Margin="0,0,0,8" />
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
