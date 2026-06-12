@@ -68,6 +68,6 @@ public sealed class AppSettings
     public string SkinMode { get; set; } = "default";
     public string? SkinImagePath { get; set; }
     public string? SkinVideoPath { get; set; }
-    public double SkinOverlayOpacity { get; set; } = 0.45;
+    public double SkinOverlayOpacity { get; set; } = 0.55;
     public string FontFamily { get; set; } = "Microsoft YaHei UI";
 }

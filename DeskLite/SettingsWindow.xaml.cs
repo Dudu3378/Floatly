@@ -2,30 +2,55 @@ using System.Globalization;
 using System.IO;
 using System.Text.Json;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using DeskLite.Models;
 using DeskLite.Services;
-using Microsoft.Win32;
+using WpfColor = System.Windows.Media.Color;
 
 namespace DeskLite;
 
 public partial class SettingsWindow : Window
 {
-    private sealed class ModuleOrderItem(string id, string displayName, bool isVisible)
+    private sealed class ModuleOrderItem
     {
-        public string Id { get; } = id;
-        public string DisplayName { get; } = displayName;
-        public bool IsVisible { get; set; } = isVisible;
+        public string Id { get; init; } = string.Empty;
+        public string DisplayName { get; init; } = string.Empty;
+        public bool IsVisible { get; set; }
     }
+
+    private static readonly string[] ConfigurableModuleIds =
+    [
+        DeskModuleIds.YearProgress,
+        DeskModuleIds.OffWork,
+        DeskModuleIds.Salary,
+        DeskModuleIds.Countdown,
+        DeskModuleIds.Pomodoro,
+        DeskModuleIds.DailyQuote,
+        DeskModuleIds.Scratch,
+        DeskModuleIds.Todos
+    ];
+
+    private static readonly Dictionary<string, string> SettingsModuleDisplayNames =
+        new(StringComparer.Ordinal)
+        {
+            [DeskModuleIds.YearProgress] = "年进度",
+            [DeskModuleIds.OffWork] = "下班倒计时",
+            [DeskModuleIds.Salary] = "摸鱼小助手",
+            [DeskModuleIds.Countdown] = "倒数日",
+            [DeskModuleIds.Pomodoro] = "番茄钟",
+            [DeskModuleIds.DailyQuote] = "每日一句",
+            [DeskModuleIds.Scratch] = "速记便签",
+            [DeskModuleIds.Todos] = "待办提醒"
+        };
 
     private const int MinOpacityPercent = 30;
     private const int MaxOpacityPercent = 100;
 
-    private readonly AppSettings _original;
+    private AppSettings _original;
     private readonly LocationService _locationService = new();
     private bool _syncOpacity;
-    private bool _syncInactiveOpacity;
     private bool _syncFontSize;
     private bool _syncSkinOverlay;
     private bool _isInitializing = true;
@@ -33,6 +58,8 @@ public partial class SettingsWindow : Window
     private string? _selectedFontColor;
 
     public AppSettings? Result { get; private set; }
+    public event EventHandler<AppSettings>? SettingsApplied;
+    public event EventHandler<AppSettings>? SettingsSaved;
 
     public SettingsWindow(AppSettings settings)
     {
@@ -43,12 +70,32 @@ public partial class SettingsWindow : Window
         _original.SkinOverlayOpacity = SkinService.ClampOverlayOpacity(_original.SkinOverlayOpacity);
         InitializeComponent();
         FontFamilyHelper.Apply(this, _original.FontFamily);
+        SetupModuleListTemplate();
         RbSkinDefault.Checked += (_, _) => UpdateSkinControls();
         RbSkinSolid.Checked += (_, _) => UpdateSkinControls();
         RbSkinImage.Checked += (_, _) => UpdateSkinControls();
         RbSkinVideo.Checked += (_, _) => UpdateSkinControls();
+        RbAutoLocate.Checked += (_, _) => UpdateCityControls();
+        RbManualCity.Checked += (_, _) => UpdateCityControls();
         LoadFromSettings(_original);
+        NavList.SelectedIndex = 0;
         _isInitializing = false;
+    }
+
+    private void SetupModuleListTemplate()
+    {
+        var template = new DataTemplate();
+        var factory = new FrameworkElementFactory(typeof(System.Windows.Controls.CheckBox));
+        factory.SetBinding(System.Windows.Controls.CheckBox.ContentProperty, new System.Windows.Data.Binding(nameof(ModuleOrderItem.DisplayName)));
+        factory.SetBinding(System.Windows.Controls.CheckBox.IsCheckedProperty, new System.Windows.Data.Binding(nameof(ModuleOrderItem.IsVisible))
+        {
+            Mode = System.Windows.Data.BindingMode.TwoWay
+        });
+        factory.SetValue(System.Windows.Controls.CheckBox.ForegroundProperty, FindResource("SettingsText"));
+        factory.SetValue(System.Windows.Controls.CheckBox.MarginProperty, new Thickness(4, 6, 4, 6));
+        factory.SetValue(System.Windows.Controls.CheckBox.CursorProperty, System.Windows.Input.Cursors.Hand);
+        template.VisualTree = factory;
+        ModuleOrderList.ItemTemplate = template;
     }
 
     private static AppSettings Clone(AppSettings settings)
@@ -61,8 +108,7 @@ public partial class SettingsWindow : Window
     {
         ChkAlwaysOnTop.IsChecked = s.AlwaysOnTop;
         ChkAutoStart.IsChecked = s.AutoStart;
-        ChkClickThrough.IsChecked = s.WindowLocked;
-        ChkTopAutoHide.IsChecked = s.EnableTopAutoHide;
+        ChkClickThrough.IsChecked = s.ClickThrough;
         ChkGlobalHotkey.IsChecked = s.EnableGlobalHotkey;
         TxtHotkeyShowHide.Text = HotkeyComboHelper.Sanitize(s.HotkeyShowHide, HotkeyComboHelper.DefaultShowHide);
         TxtHotkeyQuickTodo.Text = HotkeyComboHelper.Sanitize(s.HotkeyQuickTodo, HotkeyComboHelper.DefaultQuickTodo);
@@ -72,7 +118,16 @@ public partial class SettingsWindow : Window
         TxtMonthlySalary.Text = s.MonthlySalary > 0 ? s.MonthlySalary.ToString("0.##", CultureInfo.InvariantCulture) : string.Empty;
         TxtWorkDaysPerMonth.Text = s.WorkDaysPerMonth.ToString();
         TxtWorkHoursPerDay.Text = s.WorkHoursPerDay.ToString("0.##", CultureInfo.InvariantCulture);
-        ChkTime24h.IsChecked = s.Time24h;
+
+        if (s.Time24h)
+        {
+            RbTime24h.IsChecked = true;
+        }
+        else
+        {
+            RbTime12h.IsChecked = true;
+        }
+
         ChkShowSeconds.IsChecked = s.ShowSeconds;
 
         if (AppThemePalette.Parse(s.Theme) == ThemeMode.Light)
@@ -84,12 +139,11 @@ public partial class SettingsWindow : Window
             RbThemeDark.IsChecked = true;
         }
 
+        UpdateThemeCards();
+
         var opacityPercent = (int)Math.Round(Math.Clamp(s.Opacity, MinOpacityPercent / 100.0, 1.0) * 100);
         opacityPercent = Math.Clamp(opacityPercent, MinOpacityPercent, MaxOpacityPercent);
         SetOpacityUi(opacityPercent);
-        ChkHoverOpacity.IsChecked = s.EnableHoverOpacity;
-        SetInactiveOpacityUi((int)Math.Round(Math.Clamp(s.InactiveOpacity, MinOpacityPercent / 100.0, 1.0) * 100));
-        UpdateHoverOpacityControls();
 
         var fontPt = FontScaleHelper.ResolvePt(s);
         SetFontSizeUi(fontPt);
@@ -101,8 +155,18 @@ public partial class SettingsWindow : Window
         ChkShowCityName.IsChecked = s.ShowCityName;
         ChkShowSunrise.IsChecked = s.ShowSunriseSunset;
         ChkShowTomorrow.IsChecked = s.ShowTomorrowWeather;
-        ChkAutoLocate.IsChecked = s.AutoLocateCity;
+        if (s.AutoLocateCity)
+        {
+            RbAutoLocate.IsChecked = true;
+        }
+        else
+        {
+            RbManualCity.IsChecked = true;
+        }
+
         TxtCity.Text = s.ResolvedCityName ?? s.City;
+        UpdateCityControls();
+        UpdateLocationStatus(s);
 
         ChkShowWeekStrip.IsChecked = s.ShowWeekStrip;
         ChkShowHuangLi.IsChecked = s.ShowHuangLi;
@@ -115,24 +179,152 @@ public partial class SettingsWindow : Window
             RbCalWeek.IsChecked = true;
         }
 
-        ChkYearProgress.IsChecked = s.ShowYearProgress;
-        ChkOffWorkCountdown.IsChecked = s.ShowOffWorkCountdown;
-        ChkSalaryHelper.IsChecked = s.ShowSalaryHelper;
-        ChkCountdown.IsChecked = s.ShowCountdown;
-        TxtCountdownTitle.Text = s.CustomCountdownTitle;
-        DpCountdownDate.SelectedDate = DateTime.TryParse(s.CustomCountdownDate, out var countdownDate)
-            ? countdownDate
-            : null;
-        ChkPomodoro.IsChecked = s.ShowPomodoro;
         TxtPomodoroWork.Text = s.PomodoroWorkMinutes.ToString();
         TxtPomodoroBreak.Text = s.PomodoroBreakMinutes.ToString();
         TxtPomodoroLongBreak.Text = s.PomodoroLongBreakMinutes.ToString();
         TxtPomodoroSessions.Text = s.PomodoroSessionsBeforeLongBreak.ToString();
-        ChkDailyQuote.IsChecked = s.ShowDailyQuote;
-        TxtDailyQuote.Text = s.CustomDailyQuote;
-        ChkScratch.IsChecked = s.ShowScratch;
-        ChkTodoReminder.IsChecked = s.ShowTodoReminder;
         LoadModuleOrder(s);
+    }
+
+    private void NavList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (NavList.SelectedItem is not ListBoxItem item || item.Tag is not string tag)
+        {
+            return;
+        }
+
+        var target = tag switch
+        {
+            "general" => SectionGeneral as FrameworkElement,
+            "appearance" => SectionAppearance as FrameworkElement,
+            "weather" => SectionWeather as FrameworkElement,
+            "calendar" => SectionCalendar as FrameworkElement,
+            "modules" => SectionModules as FrameworkElement,
+            _ => null
+        };
+
+        target?.BringIntoView();
+    }
+
+    private void ThemeDarkCard_Click(object sender, MouseButtonEventArgs e)
+    {
+        RbThemeDark.IsChecked = true;
+        UpdateThemeCards();
+    }
+
+    private void ThemeLightCard_Click(object sender, MouseButtonEventArgs e)
+    {
+        RbThemeLight.IsChecked = true;
+        UpdateThemeCards();
+    }
+
+    private void UpdateThemeCards()
+    {
+        var dark = RbThemeDark.IsChecked == true;
+        ThemeDarkCard.BorderBrush = dark
+            ? (System.Windows.Media.Brush)FindResource("SettingsAccent")
+            : (System.Windows.Media.Brush)FindResource("SettingsBorder");
+        ThemeLightCard.BorderBrush = dark
+            ? (System.Windows.Media.Brush)FindResource("SettingsBorder")
+            : (System.Windows.Media.Brush)FindResource("SettingsAccent");
+        ThemeDarkCheck.Visibility = dark ? Visibility.Visible : Visibility.Collapsed;
+        ThemeLightCheck.Visibility = dark ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    private void SkinToggle_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not System.Windows.Controls.Primitives.ToggleButton btn || btn.Tag is not string tag)
+        {
+            return;
+        }
+
+        switch (tag)
+        {
+            case SkinService.ModeSolid:
+                RbSkinSolid.IsChecked = true;
+                break;
+            case SkinService.ModeImage:
+                RbSkinImage.IsChecked = true;
+                break;
+            case SkinService.ModeVideo:
+                RbSkinVideo.IsChecked = true;
+                break;
+            default:
+                RbSkinDefault.IsChecked = true;
+                break;
+        }
+
+        UpdateSkinToggles();
+        UpdateSkinControls();
+    }
+
+    private void UpdateSkinToggles()
+    {
+        var mode = RbSkinVideo.IsChecked == true
+            ? SkinService.ModeVideo
+            : RbSkinImage.IsChecked == true
+                ? SkinService.ModeImage
+                : RbSkinSolid.IsChecked == true
+                    ? SkinService.ModeSolid
+                    : SkinService.ModeDefault;
+
+        TbSkinDefault.IsChecked = mode == SkinService.ModeDefault;
+        TbSkinSolid.IsChecked = mode == SkinService.ModeSolid;
+        TbSkinImage.IsChecked = mode == SkinService.ModeImage;
+        TbSkinVideo.IsChecked = mode == SkinService.ModeVideo;
+
+        var accent = (System.Windows.Media.Brush)FindResource("SettingsAccent");
+        var border = (System.Windows.Media.Brush)FindResource("SettingsBorder");
+        foreach (var tb in new[] { TbSkinDefault, TbSkinSolid, TbSkinImage, TbSkinVideo })
+        {
+            tb.BorderBrush = tb.IsChecked == true ? accent : border;
+            tb.BorderThickness = new Thickness(tb.IsChecked == true ? 2 : 1);
+        }
+    }
+
+    private void UpdateCityControls()
+    {
+        var auto = RbAutoLocate.IsChecked == true;
+        TxtCity.IsEnabled = !auto;
+    }
+
+    private void UpdateLocationStatus(AppSettings s)
+    {
+        var cache = new WeatherService().LoadCache();
+        var source = cache?.LocationSource;
+        var method = s.AutoLocateCity
+            ? LocationService.DescribeSource(string.IsNullOrWhiteSpace(source) ? "auto" : source)
+            : LocationService.DescribeSource("manual");
+        var showIpWarning = s.AutoLocateCity && string.Equals(source, "ip", StringComparison.OrdinalIgnoreCase);
+        LocationIpWarningText.Visibility = showIpWarning ? Visibility.Visible : Visibility.Collapsed;
+
+        if (!string.IsNullOrWhiteSpace(s.ResolvedCityName))
+        {
+            LocationStatusText.Text = string.IsNullOrWhiteSpace(s.ResolvedRegion)
+                ? $"定位方式：{method} · {s.ResolvedCityName}"
+                : $"定位方式：{method} · {s.ResolvedCityName}, {s.ResolvedRegion}";
+        }
+        else if (!string.IsNullOrWhiteSpace(s.City))
+        {
+            LocationStatusText.Text = s.AutoLocateCity
+                ? $"定位方式：{method} · {s.City}"
+                : $"定位方式：手动 · {s.City}";
+        }
+        else
+        {
+            LocationStatusText.Text = s.AutoLocateCity
+                ? "定位方式：等待自动定位"
+                : "定位方式：手动 · 请输入城市";
+        }
+    }
+
+    private void UpdateLocationStatus(LocationService.DetectedLocation loc)
+    {
+        var method = LocationService.DescribeSource(loc.Source);
+        LocationIpWarningText.Visibility = loc.IpFallbackWarning ? Visibility.Visible : Visibility.Collapsed;
+        LocationStatusText.Text = string.IsNullOrWhiteSpace(loc.Region)
+            ? $"定位方式：{method} · {loc.City}"
+            : $"定位方式：{method} · {loc.City}, {loc.Region}";
     }
 
     private void SetOpacityUi(int percent)
@@ -144,22 +336,8 @@ public partial class SettingsWindow : Window
 
         _syncOpacity = true;
         SliderOpacity.Value = percent;
-        TxtOpacity.Text = percent.ToString();
+        TxtOpacity.Text = $"{percent}%";
         _syncOpacity = false;
-    }
-
-    private void SetInactiveOpacityUi(int percent)
-    {
-        if (SliderInactiveOpacity is null || TxtInactiveOpacity is null)
-        {
-            return;
-        }
-
-        percent = Math.Clamp(percent, MinOpacityPercent, MaxOpacityPercent);
-        _syncInactiveOpacity = true;
-        SliderInactiveOpacity.Value = percent;
-        TxtInactiveOpacity.Text = percent.ToString();
-        _syncInactiveOpacity = false;
     }
 
     private void LoadFontFamilies(string? selected)
@@ -188,11 +366,11 @@ public partial class SettingsWindow : Window
 
             var btn = new System.Windows.Controls.Button
             {
-                Width = 28,
-                Height = 28,
+                Width = 32,
+                Height = 32,
                 Margin = new Thickness(0, 0, 8, 8),
                 Background = new SolidColorBrush(color.Value),
-                BorderBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(0xD1, 0xD5, 0xDB)),
+                BorderBrush = new SolidColorBrush(WpfColor.FromArgb(0x40, 0xFF, 0xFF, 0xFF)),
                 BorderThickness = new Thickness(1),
                 Tag = hex,
                 ToolTip = hex,
@@ -202,20 +380,21 @@ public partial class SettingsWindow : Window
             FontColorPalette.Children.Add(btn);
         }
 
-        TxtCustomFontColor.Text = _selectedFontColor ?? string.Empty;
+        TxtCustomFontColor.Text = _selectedFontColor ?? "#FFFFFF";
         UpdateFontColorSelection();
     }
 
     private void UpdateFontColorSelection()
     {
+        var accent = WpfColor.FromRgb(0x5C, 0x8D, 0xFF);
+        var border = WpfColor.FromArgb(0x40, 0xFF, 0xFF, 0xFF);
+
         foreach (var child in FontColorPalette.Children.OfType<System.Windows.Controls.Button>())
         {
             var hex = child.Tag as string;
             var selected = string.Equals(hex, _selectedFontColor, StringComparison.OrdinalIgnoreCase);
             child.BorderThickness = new Thickness(selected ? 2 : 1);
-            child.BorderBrush = selected
-                ? new SolidColorBrush(System.Windows.Media.Color.FromRgb(0x25, 0x63, 0xEB))
-                : new SolidColorBrush(System.Windows.Media.Color.FromRgb(0xD1, 0xD5, 0xDB));
+            child.BorderBrush = new SolidColorBrush(selected ? accent : border);
         }
     }
 
@@ -248,6 +427,7 @@ public partial class SettingsWindow : Window
         TxtSkinImagePath.Text = s.SkinImagePath ?? string.Empty;
         TxtSkinVideoPath.Text = s.SkinVideoPath ?? string.Empty;
         SetSkinOverlayUi((int)Math.Round(SkinService.ClampOverlayOpacity(s.SkinOverlayOpacity) * 100));
+        UpdateSkinToggles();
         UpdateSkinControls();
     }
 
@@ -274,7 +454,7 @@ public partial class SettingsWindow : Window
         percent = Math.Clamp(percent, 0, 85);
         _syncSkinOverlay = true;
         SliderSkinOverlay.Value = percent;
-        TxtSkinOverlay.Text = percent.ToString();
+        TxtSkinOverlay.Text = $"{percent}%";
         _syncSkinOverlay = false;
     }
 
@@ -298,7 +478,7 @@ public partial class SettingsWindow : Window
 
         _syncFontSize = true;
         SliderFontSize.Value = pt;
-        TxtFontSize.Text = $"{pt}pt";
+        TxtFontSize.Text = $"{pt} pt";
         _syncFontSize = false;
     }
 
@@ -311,17 +491,6 @@ public partial class SettingsWindow : Window
         }
 
         return (int)SliderOpacity.Value;
-    }
-
-    private int ReadInactiveOpacityPercent()
-    {
-        var text = TxtInactiveOpacity.Text.Trim().TrimEnd('%');
-        if (int.TryParse(text, out var value))
-        {
-            return Math.Clamp(value, MinOpacityPercent, MaxOpacityPercent);
-        }
-
-        return (int)SliderInactiveOpacity.Value;
     }
 
     private int ReadFontSizePt()
@@ -399,7 +568,7 @@ public partial class SettingsWindow : Window
         }
 
         _recordingHotkeyBox = null;
-        HotkeyStatusText.Text = "点击录制或聚焦输入框后按下组合键";
+        HotkeyStatusText.Text = "录制模式：点击红色按钮或聚焦输入框后按下组合键";
         ValidateHotkeys();
     }
 
@@ -502,53 +671,6 @@ public partial class SettingsWindow : Window
         SetOpacityUi(ReadOpacityPercent());
     }
 
-    private void SliderInactiveOpacity_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-    {
-        if (_isInitializing || _syncInactiveOpacity || TxtInactiveOpacity is null)
-        {
-            return;
-        }
-
-        SetInactiveOpacityUi((int)SliderInactiveOpacity.Value);
-    }
-
-    private void TxtInactiveOpacity_LostFocus(object sender, RoutedEventArgs e) => CommitInactiveOpacityText();
-
-    private void TxtInactiveOpacity_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
-    {
-        if (e.Key == System.Windows.Input.Key.Enter)
-        {
-            CommitInactiveOpacityText();
-        }
-    }
-
-    private void CommitInactiveOpacityText()
-    {
-        SetInactiveOpacityUi(ReadInactiveOpacityPercent());
-    }
-
-    private void ChkHoverOpacity_Changed(object sender, RoutedEventArgs e)
-    {
-        if (!_isInitializing)
-        {
-            UpdateHoverOpacityControls();
-        }
-    }
-
-    private void UpdateHoverOpacityControls()
-    {
-        var enabled = ChkHoverOpacity?.IsChecked == true;
-        if (SliderInactiveOpacity is not null)
-        {
-            SliderInactiveOpacity.IsEnabled = enabled;
-        }
-
-        if (TxtInactiveOpacity is not null)
-        {
-            TxtInactiveOpacity.IsEnabled = enabled;
-        }
-    }
-
     private void TxtFontSize_LostFocus(object sender, RoutedEventArgs e) => CommitFontSizeText();
 
     private void TxtFontSize_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
@@ -612,6 +734,7 @@ public partial class SettingsWindow : Window
 
         TxtSkinImagePath.Text = imported;
         RbSkinImage.IsChecked = true;
+        UpdateSkinToggles();
         UpdateSkinControls();
     }
 
@@ -653,6 +776,7 @@ public partial class SettingsWindow : Window
 
         TxtSkinVideoPath.Text = imported;
         RbSkinVideo.IsChecked = true;
+        UpdateSkinToggles();
         UpdateSkinControls();
     }
 
@@ -662,9 +786,7 @@ public partial class SettingsWindow : Window
 
         s.AlwaysOnTop = ChkAlwaysOnTop.IsChecked == true;
         s.AutoStart = ChkAutoStart.IsChecked == true;
-        s.ClickThrough = false;
-        s.WindowLocked = ChkClickThrough.IsChecked == true;
-        s.EnableTopAutoHide = ChkTopAutoHide.IsChecked == true;
+        s.ClickThrough = ChkClickThrough.IsChecked == true;
         s.EnableGlobalHotkey = ChkGlobalHotkey.IsChecked == true;
         s.HotkeyShowHide = HotkeyComboHelper.Sanitize(TxtHotkeyShowHide.Text, HotkeyComboHelper.DefaultShowHide);
         s.HotkeyQuickTodo = HotkeyComboHelper.Sanitize(TxtHotkeyQuickTodo.Text, HotkeyComboHelper.DefaultQuickTodo);
@@ -679,13 +801,11 @@ public partial class SettingsWindow : Window
         s.MonthlySalary = ReadMonthlySalary(TxtMonthlySalary.Text);
         s.WorkDaysPerMonth = ReadPositiveInt(TxtWorkDaysPerMonth.Text, 22, 1, 31);
         s.WorkHoursPerDay = ReadPositiveDouble(TxtWorkHoursPerDay.Text, 8, 1, 24);
-        s.Time24h = ChkTime24h.IsChecked == true;
+        s.Time24h = RbTime24h.IsChecked == true;
         s.ShowSeconds = ChkShowSeconds.IsChecked == true;
 
         s.Theme = RbThemeLight.IsChecked == true ? "light" : "dark";
         s.Opacity = ReadOpacityPercent() / 100.0;
-        s.EnableHoverOpacity = ChkHoverOpacity.IsChecked == true;
-        s.InactiveOpacity = ReadInactiveOpacityPercent() / 100.0;
         var fontPt = ReadFontSizePt();
         s.FontSizePt = fontPt;
         s.FontScale = FontScaleHelper.PtToScale(fontPt);
@@ -732,7 +852,7 @@ public partial class SettingsWindow : Window
         s.ShowCityName = ChkShowCityName.IsChecked == true;
         s.ShowSunriseSunset = ChkShowSunrise.IsChecked == true;
         s.ShowTomorrowWeather = ChkShowTomorrow.IsChecked == true;
-        s.AutoLocateCity = ChkAutoLocate.IsChecked == true;
+        s.AutoLocateCity = RbAutoLocate.IsChecked == true;
         s.City = TxtCity.Text.Trim();
         if (!string.IsNullOrWhiteSpace(s.City))
         {
@@ -743,33 +863,89 @@ public partial class SettingsWindow : Window
         s.ShowHuangLi = ChkShowHuangLi.IsChecked == true;
         s.CalendarMode = RbCalMonth.IsChecked == true ? "month" : "week";
 
-        s.ShowYearProgress = ChkYearProgress.IsChecked == true;
-        s.ShowOffWorkCountdown = ChkOffWorkCountdown.IsChecked == true;
-        s.ShowSalaryHelper = ChkSalaryHelper.IsChecked == true;
-        s.ShowCountdown = ChkCountdown.IsChecked == true;
-        s.CustomCountdownTitle = TxtCountdownTitle.Text.Trim();
-        s.CustomCountdownDate = DpCountdownDate.SelectedDate?.ToString("yyyy-MM-dd") ?? string.Empty;
-        s.ShowPomodoro = ChkPomodoro.IsChecked == true;
+        ApplyModuleListToSettings(s);
         s.PomodoroWorkMinutes = ReadPomodoroMinutes(TxtPomodoroWork.Text, 25, 1, 120);
         s.PomodoroBreakMinutes = ReadPomodoroMinutes(TxtPomodoroBreak.Text, 5, 1, 60);
         s.PomodoroLongBreakMinutes = ReadPomodoroMinutes(TxtPomodoroLongBreak.Text, 15, 1, 60);
         s.PomodoroSessionsBeforeLongBreak = ReadPomodoroMinutes(TxtPomodoroSessions.Text, 4, 2, 12);
-        s.ShowDailyQuote = ChkDailyQuote.IsChecked == true;
-        s.CustomDailyQuote = TxtDailyQuote.Text.Trim();
-        s.ShowScratch = ChkScratch.IsChecked == true;
-        s.ShowTodoReminder = ChkTodoReminder.IsChecked == true;
         s.ModuleOrder = ReadModuleOrder();
-        ApplyModuleVisibility(s);
 
         return s;
     }
 
-    private void LoadModuleOrder(AppSettings settings)
+    private static bool GetModuleVisibility(string id, AppSettings s) => id switch
+    {
+        DeskModuleIds.YearProgress => s.ShowYearProgress,
+        DeskModuleIds.OffWork => s.ShowOffWorkCountdown,
+        DeskModuleIds.Salary => s.ShowSalaryHelper,
+        DeskModuleIds.Countdown => s.ShowCountdown,
+        DeskModuleIds.Pomodoro => s.ShowPomodoro,
+        DeskModuleIds.DailyQuote => s.ShowDailyQuote,
+        DeskModuleIds.Scratch => s.ShowScratch,
+        DeskModuleIds.Todos => s.ShowTodoReminder,
+        _ => true
+    };
+
+    private static void SetModuleVisibility(string id, AppSettings s, bool visible)
+    {
+        switch (id)
+        {
+            case DeskModuleIds.YearProgress:
+                s.ShowYearProgress = visible;
+                break;
+            case DeskModuleIds.OffWork:
+                s.ShowOffWorkCountdown = visible;
+                break;
+            case DeskModuleIds.Salary:
+                s.ShowSalaryHelper = visible;
+                break;
+            case DeskModuleIds.Countdown:
+                s.ShowCountdown = visible;
+                break;
+            case DeskModuleIds.Pomodoro:
+                s.ShowPomodoro = visible;
+                break;
+            case DeskModuleIds.DailyQuote:
+                s.ShowDailyQuote = visible;
+                break;
+            case DeskModuleIds.Scratch:
+                s.ShowScratch = visible;
+                break;
+            case DeskModuleIds.Todos:
+                s.ShowTodoReminder = visible;
+                break;
+        }
+    }
+
+    private void ApplyModuleListToSettings(AppSettings s)
+    {
+        foreach (var item in ModuleOrderList.Items.Cast<ModuleOrderItem>())
+        {
+            SetModuleVisibility(item.Id, s, item.IsVisible);
+        }
+    }
+
+    private void LoadModuleOrder(AppSettings s)
     {
         ModuleOrderList.Items.Clear();
-        foreach (var id in DeskModuleIds.Normalize(settings.ModuleOrder))
+        var normalized = DeskModuleIds.Normalize(s.ModuleOrder);
+        var ordered = normalized.Where(id => ConfigurableModuleIds.Contains(id)).ToList();
+        foreach (var id in ConfigurableModuleIds)
         {
-            ModuleOrderList.Items.Add(new ModuleOrderItem(id, DeskModuleIds.DisplayNames[id], IsModuleVisible(settings, id)));
+            if (!ordered.Contains(id))
+            {
+                ordered.Add(id);
+            }
+        }
+
+        foreach (var id in ordered)
+        {
+            ModuleOrderList.Items.Add(new ModuleOrderItem
+            {
+                Id = id,
+                DisplayName = SettingsModuleDisplayNames[id],
+                IsVisible = GetModuleVisibility(id, s)
+            });
         }
 
         if (ModuleOrderList.Items.Count > 0)
@@ -782,59 +958,13 @@ public partial class SettingsWindow : Window
 
     private List<string> ReadModuleOrder()
     {
-        return ModuleOrderList.Items
+        var fromList = ModuleOrderList.Items
             .Cast<ModuleOrderItem>()
             .Select(item => item.Id)
             .ToList();
-    }
-
-    private List<string> ReadHiddenModules()
-    {
-        return ModuleOrderList.Items
-            .Cast<ModuleOrderItem>()
-            .Where(item => !item.IsVisible)
-            .Select(item => item.Id)
-            .ToList();
-    }
-
-    private static bool IsModuleVisible(AppSettings settings, string id)
-    {
-        if (DeskModuleIds.IsHidden(settings, id))
-        {
-            return false;
-        }
-
-        return id switch
-        {
-            DeskModuleIds.HuangLi => settings.ShowHuangLi,
-            DeskModuleIds.Weather => settings.ShowWeather,
-            DeskModuleIds.YearProgress => settings.ShowYearProgress,
-            DeskModuleIds.Countdown => settings.ShowCountdown,
-            DeskModuleIds.DailyQuote => settings.ShowDailyQuote,
-            DeskModuleIds.Scratch => settings.ShowScratch,
-            DeskModuleIds.Pomodoro => settings.ShowPomodoro,
-            _ => true
-        };
-    }
-
-    private void ApplyModuleVisibility(AppSettings settings)
-    {
-        settings.HiddenModules = DeskModuleIds.NormalizeHidden(ReadHiddenModules());
-        settings.ShowHuangLi = IsModuleChecked(DeskModuleIds.HuangLi);
-        settings.ShowWeather = IsModuleChecked(DeskModuleIds.Weather);
-        settings.ShowYearProgress = IsModuleChecked(DeskModuleIds.YearProgress);
-        settings.ShowCountdown = IsModuleChecked(DeskModuleIds.Countdown);
-        settings.ShowDailyQuote = IsModuleChecked(DeskModuleIds.DailyQuote);
-        settings.ShowScratch = IsModuleChecked(DeskModuleIds.Scratch);
-        settings.ShowPomodoro = IsModuleChecked(DeskModuleIds.Pomodoro);
-    }
-
-    private bool IsModuleChecked(string id)
-    {
-        return ModuleOrderList.Items
-            .Cast<ModuleOrderItem>()
-            .FirstOrDefault(item => item.Id == id)
-            ?.IsVisible == true;
+        var allNormalized = DeskModuleIds.Normalize(_original.ModuleOrder);
+        var remaining = allNormalized.Where(id => !fromList.Contains(id)).ToList();
+        return fromList.Concat(remaining).ToList();
     }
 
     private void UpdateModuleOrderButtons()
@@ -845,7 +975,7 @@ public partial class SettingsWindow : Window
         BtnModuleDown.IsEnabled = index >= 0 && index < count - 1;
     }
 
-    private void ModuleOrderList_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    private void ModuleOrderList_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         UpdateModuleOrderButtons();
     }
@@ -858,6 +988,13 @@ public partial class SettingsWindow : Window
     private void BtnModuleDown_Click(object sender, RoutedEventArgs e)
     {
         MoveSelectedModule(1);
+    }
+
+    private void BtnResetModuleOrder_Click(object sender, RoutedEventArgs e)
+    {
+        var current = ReadToSettings();
+        current.ModuleOrder = [.. DeskModuleIds.DefaultOrder];
+        LoadModuleOrder(current);
     }
 
     private void MoveSelectedModule(int delta)
@@ -879,21 +1016,31 @@ public partial class SettingsWindow : Window
     private async void BtnDetectLocation_Click(object sender, RoutedEventArgs e)
     {
         BtnDetectLocation.IsEnabled = false;
-        LocationStatusText.Text = "正在定位…";
+        LocationIpWarningText.Visibility = Visibility.Collapsed;
+        LocationStatusText.Text = "定位方式：正在使用 Windows 定位…";
         try
         {
-            var loc = await _locationService.DetectByIpAsync();
+            var loc = await _locationService.TryDetectByWindowsAsync();
             if (loc is null)
             {
-                LocationStatusText.Text = "定位失败，请检查网络连接。";
+                LocationStatusText.Text = "定位方式：Windows 定位不可用，正在尝试 IP 定位（备用）…";
+                loc = await _locationService.DetectByIpAsync();
+                if (loc is not null)
+                {
+                    loc = loc with { IpFallbackWarning = true };
+                }
+            }
+
+            if (loc is null)
+            {
+                LocationStatusText.Text = "定位失败：请检查 Windows 位置权限、网络连接，或改用手动输入城市";
                 return;
             }
 
             TxtCity.Text = loc.City;
-            ChkAutoLocate.IsChecked = true;
-            LocationStatusText.Text = string.IsNullOrWhiteSpace(loc.Region)
-                ? $"已定位：{loc.City}"
-                : $"已定位：{loc.City} · {loc.Region}";
+            RbAutoLocate.IsChecked = true;
+            UpdateCityControls();
+            UpdateLocationStatus(loc);
         }
         finally
         {
@@ -901,36 +1048,75 @@ public partial class SettingsWindow : Window
         }
     }
 
-    private void Save_Click(object sender, RoutedEventArgs e)
+    private bool TryValidateInputs()
     {
         if (!string.IsNullOrWhiteSpace(TxtCustomFontColor.Text) && FontColorHelper.NormalizeHex(TxtCustomFontColor.Text) is null)
         {
             System.Windows.MessageBox.Show(this, "字体颜色格式无效，请使用 #RRGGBB。", AppConstants.DisplayName,
                 MessageBoxButton.OK, MessageBoxImage.Information);
-            return;
+            return false;
         }
 
         if (!OffWorkService.TryParseTime(TxtWorkStartTime.Text, out _) || !OffWorkService.TryParseTime(TxtWorkEndTime.Text, out _))
         {
             System.Windows.MessageBox.Show(this, "上下班时间格式无效，请使用 HH:mm（如 09:00）。", AppConstants.DisplayName,
                 MessageBoxButton.OK, MessageBoxImage.Information);
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(TxtCity.Text) && ChkShowWeather.IsChecked == true && RbAutoLocate.IsChecked != true)
+        {
+            System.Windows.MessageBox.Show(this, "请填写城市名称，或开启自动定位。", AppConstants.DisplayName, MessageBoxButton.OK, MessageBoxImage.Information);
+            return false;
+        }
+
+        return true;
+    }
+
+    private void Apply_Click(object sender, RoutedEventArgs e)
+    {
+        if (!TryValidateInputs())
+        {
             return;
         }
 
-        if (string.IsNullOrWhiteSpace(TxtCity.Text) && ChkShowWeather.IsChecked == true && ChkAutoLocate.IsChecked != true)
+        var settings = ReadToSettings();
+        Result = settings;
+        _original = Clone(settings);
+        SettingsApplied?.Invoke(this, settings);
+    }
+
+    private void Save_Click(object sender, RoutedEventArgs e)
+    {
+        if (!TryValidateInputs())
         {
-            System.Windows.MessageBox.Show(this, "请填写城市名称，或开启自动定位。", AppConstants.DisplayName, MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
 
         Result = ReadToSettings();
-        DialogResult = true;
+        _original = Clone(Result);
+        SettingsSaved?.Invoke(this, Result);
         Close();
     }
 
     private void Cancel_Click(object sender, RoutedEventArgs e)
     {
-        DialogResult = false;
         Close();
+    }
+
+    private void BtnRestoreDefaults_Click(object sender, RoutedEventArgs e)
+    {
+        var confirm = System.Windows.MessageBox.Show(
+            this,
+            "确定要恢复所有设置为默认值吗？此操作在点击「应用」或「保存设置」后才会生效。",
+            AppConstants.DisplayName,
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+        if (confirm != MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        LoadFromSettings(new AppSettings());
     }
 }
