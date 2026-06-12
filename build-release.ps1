@@ -1,9 +1,9 @@
-# Floatly v2.0.0 Build Script
+# Floatly v2.0.3 Build Script
 # PowerShell 5.1+
 
 $ErrorActionPreference = "Stop"
 
-$Version = "2.0.2"
+$Version = "2.0.3"
 $RootDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ProjectDir = Join-Path $RootDir "DeskLite"
 $OutputDir = Join-Path $RootDir "release\Floatly"
@@ -28,7 +28,7 @@ Push-Location $RootDir
 dotnet publish $ProjectDir `
     -c Release `
     -r win-x64 `
-    --self-contained false `
+    --self-contained true `
     -p:PublishSingleFile=false `
     -p:IncludeNativeLibrariesForSelfExtract=true `
     -o $OutputDir
@@ -48,6 +48,7 @@ Copy-Item (Join-Path $ProjectDir "app.ico") $OutputDir -Force
 Write-Host "[4/4] Building Inno Setup installer..." -ForegroundColor Yellow
 $Iscc = @(
     "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe",
+    "D:\app\Inno Setup 6\ISCC.exe",
     "C:\Program Files (x86)\Inno Setup 6\ISCC.exe",
     "C:\Program Files\Inno Setup 6\ISCC.exe"
 ) | Where-Object { Test-Path $_ } | Select-Object -First 1

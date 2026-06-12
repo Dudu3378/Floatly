@@ -270,7 +270,7 @@
 
                 <StackPanel Grid.Row="0" Margin="20,0,16,20">
                     <TextBlock Text="Floatly 设置" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource SettingsText}" />
-                    <TextBlock Text="Floatly 2.0 · 版本 2.0.0" FontSize="11" Foreground="{DynamicResource SettingsMuted}" Margin="0,4,0,0" />
+                    <TextBlock Text="Floatly 2.0 · 版本 2.0.3" FontSize="11" Foreground="{DynamicResource SettingsMuted}" Margin="0,4,0,0" />
                 </StackPanel>
 
                 <ListBox x:Name="NavList" Grid.Row="1" Background="Transparent" BorderThickness="0"
@@ -318,7 +318,7 @@
 
                 <StackPanel Grid.Row="3" Margin="20,16,16,0">
                     <TextBlock Text="关于 Floatly 2.0" FontSize="11" Foreground="{DynamicResource SettingsMuted}" />
-                    <TextBlock Text="版本 2.0.0" FontSize="11" Foreground="{DynamicResource SettingsMuted}" Margin="0,2,0,0" />
+                    <TextBlock Text="版本 2.0.3" FontSize="11" Foreground="{DynamicResource SettingsMuted}" Margin="0,2,0,0" />
                 </StackPanel>
             </Grid>
         </Border>
@@ -328,8 +328,8 @@
                       Margin="20,20,20,0" VerticalScrollBarVisibility="Auto">
             <StackPanel>
             <!-- 甯歌 -->
-            <Border x:Name="SectionGeneral" Height="0" Visibility="Collapsed" />
-            <Grid Margin="0,0,0,12">
+            <Border Height="0" Visibility="Collapsed" />
+            <Grid x:Name="SectionGeneral" Margin="0,0,0,12">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="*" />
@@ -461,8 +461,8 @@
                 </Grid>
 
             <!-- 外观 -->
-            <Border x:Name="SectionAppearance" Height="0" Visibility="Collapsed" Margin="0,8,0,0" />
-            <Grid Margin="0,0,0,12">
+            <Border Height="0" Visibility="Collapsed" Margin="0,8,0,0" />
+            <Grid x:Name="SectionAppearance" Margin="0,0,0,12">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="*" />
@@ -647,8 +647,8 @@
                 </Grid>
 
             <!-- 天气 -->
-            <Border x:Name="SectionWeather" Height="0" Visibility="Collapsed" />
-            <Border Style="{StaticResource SettingsCard}" HorizontalAlignment="Stretch" Margin="0,0,12,12">
+            <Border Height="0" Visibility="Collapsed" />
+            <Border x:Name="SectionWeather" Style="{StaticResource SettingsCard}" HorizontalAlignment="Stretch" Margin="0,0,12,12">
                     <StackPanel>
                         <TextBlock Style="{StaticResource CardTitle}" Text="天气" />
                         <CheckBox x:Name="ChkShowWeather" Style="{StaticResource FloatlyToggle}" Content="显示天气" Margin="0,0,0,12" />
@@ -682,8 +682,8 @@
                 </Border>
 
             <!-- 日历 -->
-            <Border x:Name="SectionCalendar" Height="0" Visibility="Collapsed" />
-            <Border Style="{StaticResource SettingsCard}" MaxWidth="480" HorizontalAlignment="Left" Margin="0,0,12,12">
+            <Border Height="0" Visibility="Collapsed" />
+            <Border x:Name="SectionCalendar" Style="{StaticResource SettingsCard}" MaxWidth="480" HorizontalAlignment="Left" Margin="0,0,12,12">
                     <StackPanel>
                         <TextBlock Style="{StaticResource CardTitle}" Text="日历" />
                         <CheckBox x:Name="ChkShowWeekStrip" Style="{StaticResource FloatlyToggle}" Content="显示万年历" Margin="0,0,0,12" />
@@ -697,8 +697,8 @@
                 </Border>
 
             <!-- 模块 -->
-            <Border x:Name="SectionModules" Height="0" Visibility="Collapsed" />
-            <Grid Margin="0,0,0,12">
+            <Border Height="0" Visibility="Collapsed" />
+            <Grid x:Name="SectionModules" Margin="0,0,0,12">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="280" />

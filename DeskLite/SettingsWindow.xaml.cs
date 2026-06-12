@@ -91,7 +91,7 @@ public partial class SettingsWindow : Window
         {
             Mode = System.Windows.Data.BindingMode.TwoWay
         });
-        factory.SetValue(System.Windows.Controls.CheckBox.ForegroundProperty, FindResource("SettingsText"));
+        factory.SetResourceReference(System.Windows.Controls.CheckBox.ForegroundProperty, "SettingsText");
         factory.SetValue(System.Windows.Controls.CheckBox.MarginProperty, new Thickness(4, 6, 4, 6));
         factory.SetValue(System.Windows.Controls.CheckBox.CursorProperty, System.Windows.Input.Cursors.Hand);
         template.VisualTree = factory;

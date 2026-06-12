@@ -230,7 +230,6 @@ public partial class MainWindow : Window
 
     private void SyncBottomToolbar()
     {
-        ClickThroughToggle.IsChecked = _settings.ClickThrough;
         ThemeToggleBtn.Content = AppThemePalette.Parse(_settings.Theme) == ThemeMode.Light ? "☀" : "🌙";
         ToolbarPinBtn.Foreground = Topmost ? Brush(FloatlyDesignTokens.AccentBlue) : Brush(_palette.TextSecondary);
     }
@@ -2671,12 +2670,4 @@ public partial class MainWindow : Window
         SyncBottomToolbar();
     }
 
-    private void ClickThroughToggle_Click(object sender, RoutedEventArgs e)
-    {
-        if (ClickThroughToggle.IsChecked != _settings.ClickThrough)
-        {
-            ToggleClickThrough();
-            ClickThroughToggle.IsChecked = _settings.ClickThrough;
-        }
-    }
 }

@@ -355,7 +355,7 @@
                         <StackPanel x:Name="ExtraModuleStack" Margin="0,0,0,0" />
 
                         <!-- Countdown + Year Progress row -->
-                        <Grid Margin="0,0,0,10">
+                        <Grid x:Name="YearCountdownRow" Margin="0,0,0,10">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="6" />
@@ -405,13 +405,13 @@
                         </Border>
 
                         <!-- Todo + Pomodoro row -->
-                        <Grid Margin="0,0,0,10">
+                        <Grid x:Name="TodoPomodoroRow" Margin="0,0,0,10">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="6" />
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
-                            <Border Grid.Column="0" Style="{StaticResource FloatlyCard}" Padding="10">
+                            <Border x:Name="TodoCard" Grid.Column="0" Style="{StaticResource FloatlyCard}" Padding="10">
                                 <StackPanel x:Name="TodoPanel">
                                     <Grid Margin="0,0,0,6">
                                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
@@ -488,7 +488,7 @@
                                     </Border>
                                 </StackPanel>
                             </Border>
-                            <Border Grid.Column="2" Style="{StaticResource FloatlyCard}" Padding="10">
+                            <Border x:Name="PomodoroCard" Grid.Column="2" Style="{StaticResource FloatlyCard}" Padding="10">
                                 <StackPanel x:Name="PomodoroPanel" Visibility="Collapsed">
                                     <Grid Margin="0,0,0,6">
                                         <TextBlock x:Name="PomodoroPhaseText" Text="番茄钟" Style="{StaticResource CardTitle}" />
@@ -600,10 +600,6 @@
                             <Button x:Name="ToolbarPinBtn" Grid.Column="1" Content="📌 置顶" Height="28" Padding="8,0"
                                     Click="PinBtn_Click" Background="Transparent" BorderThickness="0"
                                     Foreground="#A6FFFFFF" Cursor="Hand" FontSize="10" HorizontalAlignment="Center" />
-                            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                                <TextBlock Text="穿透" FontSize="10" Foreground="#8B95A5" VerticalAlignment="Center" Margin="0,0,6,0" />
-                                <CheckBox x:Name="ClickThroughToggle" VerticalAlignment="Center" Click="ClickThroughToggle_Click" />
-                            </StackPanel>
                         </Grid>
                     </StackPanel>
                 </Border>
