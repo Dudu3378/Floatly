@@ -74,4 +74,34 @@ public static class DeskModuleIds
 
         return result;
     }
+
+    public static List<string> NormalizeHidden(IEnumerable<string>? hidden)
+    {
+        var result = new List<string>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+
+        if (hidden == null)
+        {
+            return result;
+        }
+
+        foreach (var id in hidden)
+        {
+            if (string.IsNullOrWhiteSpace(id))
+            {
+                continue;
+            }
+
+            var key = id.Trim().ToLowerInvariant();
+            if (DisplayNames.ContainsKey(key) && seen.Add(key))
+            {
+                result.Add(key);
+            }
+        }
+
+        return result;
+    }
+
+    public static bool IsHidden(AppSettings settings, string id) =>
+        NormalizeHidden(settings.HiddenModules).Contains(id);
 }

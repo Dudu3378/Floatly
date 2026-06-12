@@ -22,6 +22,7 @@ public partial class MainWindow : Window
     private readonly PomodoroService _pomodoro = new();
     private readonly AppSettings _settings;
     private readonly DispatcherTimer _clockTimer;
+    private readonly DispatcherTimer _topAutoHideTimer;
     private DateTime _lastWeatherFetch = DateTime.MinValue;
     private DateTime? _calendarPreviewDate;
     private CalendarViewMode _calendarMode = CalendarViewMode.Week;
@@ -30,6 +31,10 @@ public partial class MainWindow : Window
     private GlobalHotkeyService? _hotkeyService;
     private AppThemePalette _palette = AppThemePalette.For(ThemeMode.Dark);
     private bool _suppressSizePersist;
+    private bool _isExiting;
+    private bool _isAutoHiddenTop;
+    private bool _suppressPositionPersist;
+    private double _expandedTop;
     private TodoListWindow? _todoListWindow;
     private ScratchPadWindow? _scratchPadWindow;
 
@@ -73,6 +78,13 @@ public partial class MainWindow : Window
         };
         _clockTimer.Start();
 
+        _topAutoHideTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(120)
+        };
+        _topAutoHideTimer.Tick += (_, _) => CheckTopAutoHideHover();
+        _topAutoHideTimer.Start();
+
         _tray = new TrayService(
             this,
             OpenSettings,
@@ -86,19 +98,30 @@ public partial class MainWindow : Window
 
         Closing += (_, e) =>
         {
+            if (_isExiting)
+            {
+                return;
+            }
+
             e.Cancel = true;
             Hide();
         };
 
         IsVisibleChanged += (_, _) => UpdateSkinVideoPlayback();
-        LocationChanged += (_, _) => SaveWindowPosition();
+        LocationChanged += (_, _) =>
+        {
+            if (!_suppressPositionPersist)
+            {
+                SaveWindowPosition();
+            }
+        };
         SizeChanged += OnWindowSizeChanged;
     }
 
     private void Window_SourceInitialized(object? sender, EventArgs e)
     {
-        WindowHelper.EnableBorderlessResize(this);
-        WindowHelper.SetClickThrough(this, _settings.ClickThrough);
+        WindowHelper.EnableBorderlessResize(this, canResize: () => !_settings.WindowLocked);
+        WindowHelper.SetClickThrough(this, enabled: false);
         if (_settings.EnableGlobalHotkey)
         {
             _hotkeyService = new GlobalHotkeyService(this, ToggleWindow, QuickAddTodo);
@@ -122,27 +145,34 @@ public partial class MainWindow : Window
         Topmost = _settings.AlwaysOnTop;
         Left = _settings.Left;
         Top = _settings.Top;
-        Opacity = Math.Clamp(_settings.Opacity, 0.30, 1.0);
+        _expandedTop = _settings.Top;
+        ApplyWindowOpacity(IsMouseOver);
         ApplyTheme();
+        ApplyLockState();
 
-        WeatherText.Visibility = _settings.ShowWeather ? Visibility.Visible : Visibility.Collapsed;
-        CityText.Visibility = _settings.ShowWeather && _settings.ShowCityName ? Visibility.Visible : Visibility.Collapsed;
-        YearProgressPanel.Visibility = _settings.ShowYearProgress ? Visibility.Visible : Visibility.Collapsed;
-        OffWorkPanel.Visibility = _settings.ShowOffWorkCountdown ? Visibility.Visible : Visibility.Collapsed;
-        SalaryPanel.Visibility = _settings.ShowSalaryHelper ? Visibility.Visible : Visibility.Collapsed;
-        CountdownPanel.Visibility = _settings.ShowCountdown ? Visibility.Visible : Visibility.Collapsed;
-        PomodoroPanel.Visibility = _settings.ShowPomodoro ? Visibility.Visible : Visibility.Collapsed;
-        DailyQuoteText.Visibility = _settings.ShowDailyQuote ? Visibility.Visible : Visibility.Collapsed;
-        ScratchPanel.Visibility = _settings.ShowScratch ? Visibility.Visible : Visibility.Collapsed;
+        var showWeather = IsModuleVisible(DeskModuleIds.Weather) && _settings.ShowWeather;
+        var showHuangLi = IsModuleVisible(DeskModuleIds.HuangLi) && _settings.ShowHuangLi;
 
-        var showWeatherExtra = _settings.ShowWeather && (_settings.ShowSunriseSunset || _settings.ShowTomorrowWeather);
+        WeatherPanel.Visibility = showWeather ? Visibility.Visible : Visibility.Collapsed;
+        WeatherText.Visibility = showWeather ? Visibility.Visible : Visibility.Collapsed;
+        CityText.Visibility = showWeather && _settings.ShowCityName ? Visibility.Visible : Visibility.Collapsed;
+        YearProgressPanel.Visibility = IsModuleVisible(DeskModuleIds.YearProgress) && _settings.ShowYearProgress ? Visibility.Visible : Visibility.Collapsed;
+        OffWorkPanel.Visibility = IsModuleVisible(DeskModuleIds.OffWork) && _settings.ShowOffWorkCountdown ? Visibility.Visible : Visibility.Collapsed;
+        SalaryPanel.Visibility = IsModuleVisible(DeskModuleIds.Salary) && _settings.ShowSalaryHelper ? Visibility.Visible : Visibility.Collapsed;
+        CountdownPanel.Visibility = IsModuleVisible(DeskModuleIds.Countdown) && _settings.ShowCountdown ? Visibility.Visible : Visibility.Collapsed;
+        PomodoroPanel.Visibility = IsModuleVisible(DeskModuleIds.Pomodoro) && _settings.ShowPomodoro ? Visibility.Visible : Visibility.Collapsed;
+        DailyQuoteText.Visibility = IsModuleVisible(DeskModuleIds.DailyQuote) && _settings.ShowDailyQuote ? Visibility.Visible : Visibility.Collapsed;
+        ScratchPanel.Visibility = IsModuleVisible(DeskModuleIds.Scratch) && _settings.ShowScratch ? Visibility.Visible : Visibility.Collapsed;
+        TodoPanel.Visibility = IsModuleVisible(DeskModuleIds.Todos) ? Visibility.Visible : Visibility.Collapsed;
+
+        var showWeatherExtra = showWeather && (_settings.ShowSunriseSunset || _settings.ShowTomorrowWeather);
         WeatherExtraText.Visibility = showWeatherExtra ? Visibility.Visible : Visibility.Collapsed;
 
         var showWeek = _settings.ShowWeekStrip;
         CalendarSection.Visibility = showWeek ? Visibility.Visible : Visibility.Collapsed;
-        HuangLiPanel.Visibility = _settings.ShowHuangLi ? Visibility.Visible : Visibility.Collapsed;
-        LunarText.Visibility = _settings.ShowHuangLi ? Visibility.Collapsed : Visibility.Visible;
-        LunarSubText.Visibility = _settings.ShowHuangLi ? Visibility.Collapsed : Visibility.Visible;
+        HuangLiPanel.Visibility = showHuangLi ? Visibility.Visible : Visibility.Collapsed;
+        LunarText.Visibility = showHuangLi ? Visibility.Collapsed : Visibility.Visible;
+        LunarSubText.Visibility = showHuangLi ? Visibility.Collapsed : Visibility.Visible;
 
         Width = Math.Clamp(_settings.WindowWidth, 260, 480);
         if (_settings.UserCustomSize)
@@ -158,7 +188,7 @@ public partial class MainWindow : Window
 
         FontFamilyHelper.Apply(this, _settings.FontFamily);
         FontScaleHelper.Apply(this, _settings.FontScale);
-        if (_settings.ShowHuangLi)
+        if (showHuangLi)
         {
             var displayDate = _calendarPreviewDate ?? DateTime.Today;
             PopulateHuangLiTimeStrip(
@@ -195,6 +225,8 @@ public partial class MainWindow : Window
             }
         }
     }
+
+    private bool IsModuleVisible(string id) => !DeskModuleIds.IsHidden(_settings, id);
 
     private void LoadCalendarState()
     {
@@ -378,9 +410,140 @@ public partial class MainWindow : Window
     public void SetOpacity(double opacity)
     {
         _settings.Opacity = Math.Clamp(opacity, 0.30, 1.0);
-        Opacity = _settings.Opacity;
+        ApplyWindowOpacity(IsMouseOver);
         JsonStore.SaveSettings(_settings);
         _tray?.RefreshMenu();
+    }
+
+    private void ApplyWindowOpacity(bool isMouseOver)
+    {
+        var opacity = _settings.EnableHoverOpacity && !isMouseOver
+            ? _settings.InactiveOpacity
+            : _settings.Opacity;
+
+        Opacity = Math.Clamp(opacity, 0.30, 1.0);
+    }
+
+    private void MainBorder_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
+    {
+        ExpandFromTopAutoHide();
+        if (_settings.EnableHoverOpacity)
+        {
+            Opacity = 1.0;
+        }
+    }
+
+    private void MainBorder_MouseLeave(object sender, System.Windows.Input.MouseEventArgs e)
+    {
+        if (_settings.EnableHoverOpacity)
+        {
+            ApplyWindowOpacity(isMouseOver: false);
+        }
+
+        CollapseToTopAutoHide();
+    }
+
+    private bool CanTopAutoHide() =>
+        _settings.EnableTopAutoHide
+        && !_settings.WindowLocked
+        && IsVisible
+        && WindowState == WindowState.Normal
+        && _expandedTop <= 2;
+
+    private void CollapseToTopAutoHide()
+    {
+        if (_isAutoHiddenTop || !CanTopAutoHide())
+        {
+            return;
+        }
+
+        _expandedTop = Math.Max(0, Top);
+        MoveWindowWithoutPersist(-Math.Max(ActualHeight - 6, 0));
+        _isAutoHiddenTop = true;
+    }
+
+    private void ExpandFromTopAutoHide()
+    {
+        if (!_isAutoHiddenTop)
+        {
+            return;
+        }
+
+        MoveWindowWithoutPersist(_expandedTop);
+        _isAutoHiddenTop = false;
+    }
+
+    private void CheckTopAutoHideHover()
+    {
+        if (!_isAutoHiddenTop || _settings.WindowLocked || !IsVisible)
+        {
+            return;
+        }
+
+        var mouse = GetMousePositionDip();
+        var withinX = mouse.X >= Left && mouse.X <= Left + ActualWidth;
+        var nearTopEdge = mouse.Y >= 0 && mouse.Y <= 12;
+        if (withinX && nearTopEdge)
+        {
+            ExpandFromTopAutoHide();
+            if (_settings.EnableHoverOpacity)
+            {
+                Opacity = 1.0;
+            }
+        }
+    }
+
+    private System.Windows.Point GetMousePositionDip()
+    {
+        var pos = System.Windows.Forms.Cursor.Position;
+        var point = new System.Windows.Point(pos.X, pos.Y);
+        var source = PresentationSource.FromVisual(this);
+        return source?.CompositionTarget is null
+            ? point
+            : source.CompositionTarget.TransformFromDevice.Transform(point);
+    }
+
+    private void MoveWindowWithoutPersist(double top)
+    {
+        _suppressPositionPersist = true;
+        Top = top;
+        _suppressPositionPersist = false;
+    }
+
+    private void ApplyLockState()
+    {
+        if (_settings.WindowLocked)
+        {
+            ExpandFromTopAutoHide();
+        }
+
+        _settings.ClickThrough = false;
+        WindowHelper.SetClickThrough(this, enabled: false);
+        ContentRoot.Cursor = _settings.WindowLocked
+            ? System.Windows.Input.Cursors.Arrow
+            : System.Windows.Input.Cursors.SizeAll;
+        LockButton.Content = "\U0001F4CC";
+        LockButton.ToolTip = _settings.WindowLocked ? "解锁窗口" : "锁定窗口";
+        LockButton.Foreground = Brush(_settings.WindowLocked ? _palette.Accent : _palette.TextMuted);
+    }
+
+    private void ToggleWindowLock()
+    {
+        _settings.WindowLocked = !_settings.WindowLocked;
+        ApplyLockState();
+        SaveWindowPosition();
+        JsonStore.SaveSettings(_settings);
+        _tray?.RefreshMenu();
+    }
+
+    private void LockButton_Click(object sender, RoutedEventArgs e)
+    {
+        ToggleWindowLock();
+        e.Handled = true;
+    }
+
+    private void MainBorder_ContextMenuOpening(object sender, ContextMenuEventArgs e)
+    {
     }
 
     public void ToggleModule(string key)
@@ -478,9 +641,8 @@ public partial class MainWindow : Window
         var displayDate = _calendarPreviewDate ?? now;
         var info = LunarCalendar.Get(displayDate);
 
-        DateText.Text = _calendarPreviewDate is null
-            ? $"周{info.WeekName} {now.Month}月{now.Day}日"
-            : $"周{info.WeekName} {displayDate.Month}月{displayDate.Day}日";
+        DateText.Text = string.Empty;
+        DateText.Visibility = Visibility.Collapsed;
 
         LunarText.Text = info.Line;
         RefreshHuangLi(displayDate);
@@ -493,8 +655,8 @@ public partial class MainWindow : Window
         {
             HuangLiPanel.Visibility = Visibility.Collapsed;
             LunarText.Visibility = Visibility.Visible;
-            LunarSubText.Visibility = Visibility.Visible;
-            LunarSubText.Text = LunarCalendar.Get(displayDate).SubLine;
+            LunarSubText.Visibility = Visibility.Collapsed;
+            LunarSubText.Text = string.Empty;
             return;
         }
 
@@ -694,7 +856,7 @@ public partial class MainWindow : Window
         }
 
         const double headerHeight = 72;
-        var scrollBody = _settings.ShowHuangLi ? 460 : 240;
+        var scrollBody = IsModuleVisible(DeskModuleIds.HuangLi) && _settings.ShowHuangLi ? 460 : 240;
         const double todoInput = 40;
         const double chrome = 28;
 
@@ -737,7 +899,7 @@ public partial class MainWindow : Window
 
         if (_settings.ShowCountdown)
         {
-            var info = CountdownService.GetInfo(_todoStore.Data.Countdowns, DateTime.Today);
+            var info = GetCountdownInfo(DateTime.Today);
             if (info is null)
             {
                 CountdownLabel.Text = "⏳ 暂无倒数日";
@@ -760,7 +922,9 @@ public partial class MainWindow : Window
 
         if (_settings.ShowDailyQuote)
         {
-            DailyQuoteText.Text = DailyQuoteService.GetToday(DateTime.Today);
+            DailyQuoteText.Text = string.IsNullOrWhiteSpace(_settings.CustomDailyQuote)
+                ? DailyQuoteService.GetToday(DateTime.Today)
+                : _settings.CustomDailyQuote.Trim();
         }
 
         if (_settings.ShowOffWorkCountdown)
@@ -810,6 +974,22 @@ public partial class MainWindow : Window
         SalarySubtitle.Visibility = string.IsNullOrWhiteSpace(info.Subtitle)
             ? Visibility.Collapsed
             : Visibility.Visible;
+    }
+
+    private CountdownInfo? GetCountdownInfo(DateTime today)
+    {
+        if (!string.IsNullOrWhiteSpace(_settings.CustomCountdownTitle)
+            && DateTime.TryParse(_settings.CustomCountdownDate, out var customDate))
+        {
+            var days = (customDate.Date - today.Date).Days;
+            if (days >= 0)
+            {
+                var progress = Math.Clamp((1.0 - days / 365.0) * 100, 0, 100);
+                return new CountdownInfo(_settings.CustomCountdownTitle.Trim(), days, progress);
+            }
+        }
+
+        return CountdownService.GetInfo(_todoStore.Data.Countdowns, today);
     }
 
     private void ApplyProgressTheme(System.Windows.Media.Color textPrimary)
@@ -1372,6 +1552,11 @@ public partial class MainWindow : Window
 
     public void OpenTodoListWindow()
     {
+        if (_settings.WindowLocked)
+        {
+            return;
+        }
+
         if (_todoListWindow is { IsVisible: true })
         {
             _todoListWindow.Activate();
@@ -1528,6 +1713,11 @@ public partial class MainWindow : Window
 
     public void PromptAddTodo()
     {
+        if (_settings.WindowLocked)
+        {
+            return;
+        }
+
         Show();
         Activate();
         NewTodoBox.Focus();
@@ -1535,6 +1725,11 @@ public partial class MainWindow : Window
 
     public void QuickAddTodo()
     {
+        if (_settings.WindowLocked)
+        {
+            return;
+        }
+
         var text = InputPrompt.Show("快速记待办", "输入待办（可加时间如 14:00 周会）：");
         if (string.IsNullOrWhiteSpace(text))
         {
@@ -1562,6 +1757,11 @@ public partial class MainWindow : Window
 
     public void AddCountdown()
     {
+        if (_settings.WindowLocked)
+        {
+            return;
+        }
+
         var title = InputPrompt.Show("添加倒数日", "事件名称：");
         if (string.IsNullOrWhiteSpace(title))
         {
@@ -1655,7 +1855,7 @@ public partial class MainWindow : Window
     private void CommitSettings(AppSettings next)
     {
         var prevAutoStart = _settings.AutoStart;
-        var prevClickThrough = _settings.ClickThrough;
+        var prevWindowLocked = _settings.WindowLocked;
         var prevHotkey = _settings.EnableGlobalHotkey;
         var prevHotkeyShowHide = _settings.HotkeyShowHide;
         var prevHotkeyQuickTodo = _settings.HotkeyQuickTodo;
@@ -1680,7 +1880,9 @@ public partial class MainWindow : Window
         _settings.ShowSeconds = next.ShowSeconds;
         _settings.AlwaysOnTop = next.AlwaysOnTop;
         _settings.AutoStart = next.AutoStart;
-        _settings.ClickThrough = next.ClickThrough;
+        _settings.ClickThrough = false;
+        _settings.WindowLocked = next.WindowLocked;
+        _settings.EnableTopAutoHide = next.EnableTopAutoHide;
         _settings.ShowWeather = next.ShowWeather;
         _settings.ShowCityName = next.ShowCityName;
         _settings.AutoLocateCity = next.AutoLocateCity;
@@ -1688,17 +1890,21 @@ public partial class MainWindow : Window
         _settings.ShowHuangLi = next.ShowHuangLi;
         _settings.ShowYearProgress = next.ShowYearProgress;
         _settings.ShowCountdown = next.ShowCountdown;
+        _settings.CustomCountdownTitle = next.CustomCountdownTitle;
+        _settings.CustomCountdownDate = next.CustomCountdownDate;
         _settings.ShowPomodoro = next.ShowPomodoro;
         _settings.PomodoroWorkMinutes = next.PomodoroWorkMinutes;
         _settings.PomodoroBreakMinutes = next.PomodoroBreakMinutes;
         _settings.PomodoroLongBreakMinutes = next.PomodoroLongBreakMinutes;
         _settings.PomodoroSessionsBeforeLongBreak = next.PomodoroSessionsBeforeLongBreak;
         _settings.ShowDailyQuote = next.ShowDailyQuote;
+        _settings.CustomDailyQuote = next.CustomDailyQuote;
         _settings.ShowSunriseSunset = next.ShowSunriseSunset;
         _settings.ShowTomorrowWeather = next.ShowTomorrowWeather;
         _settings.ShowScratch = next.ShowScratch;
         _settings.ShowTodoReminder = next.ShowTodoReminder;
         _settings.ModuleOrder = DeskModuleIds.Normalize(next.ModuleOrder);
+        _settings.HiddenModules = DeskModuleIds.NormalizeHidden(next.HiddenModules);
         _settings.EnableGlobalHotkey = next.EnableGlobalHotkey;
         _settings.HotkeyShowHide = HotkeyComboHelper.Sanitize(next.HotkeyShowHide, HotkeyComboHelper.DefaultShowHide);
         _settings.HotkeyQuickTodo = HotkeyComboHelper.Sanitize(next.HotkeyQuickTodo, HotkeyComboHelper.DefaultQuickTodo);
@@ -1718,6 +1924,8 @@ public partial class MainWindow : Window
         _settings.WorkHoursPerDay = next.WorkHoursPerDay;
         _settings.Theme = next.Theme;
         _settings.Opacity = next.Opacity;
+        _settings.EnableHoverOpacity = next.EnableHoverOpacity;
+        _settings.InactiveOpacity = next.InactiveOpacity;
         _settings.FontSizePt = next.FontSizePt;
         _settings.FontScale = next.FontScale;
         _settings.FontFamily = next.FontFamily;
@@ -1760,13 +1968,9 @@ public partial class MainWindow : Window
             AutoStartService.SetEnabled(_settings.AutoStart);
         }
 
-        if (_settings.ClickThrough != prevClickThrough)
+        if (_settings.WindowLocked != prevWindowLocked)
         {
-            WindowHelper.SetClickThrough(this, _settings.ClickThrough);
-            if (_settings.ClickThrough)
-            {
-                _tray?.ShowBalloon("已开启鼠标穿透，窗口无法拖动。请在设置中关闭。");
-            }
+            ApplyLockState();
         }
 
         if (_settings.EnableGlobalHotkey != prevHotkey ||
@@ -1834,6 +2038,11 @@ public partial class MainWindow : Window
 
     public void ResetCalendarToday()
     {
+        if (_settings.WindowLocked)
+        {
+            return;
+        }
+
         _calendarAnchor = DateTime.Today;
         _calendarPreviewDate = null;
         SaveCalendarState();
@@ -1842,6 +2051,11 @@ public partial class MainWindow : Window
 
     public void JumpToCalendarDate()
     {
+        if (_settings.WindowLocked)
+        {
+            return;
+        }
+
         var text = InputPrompt.Show("跳转日期", "输入日期 (yyyy-MM-dd)：", DateTime.Today.ToString("yyyy-MM-dd"));
         if (!DateTime.TryParse(text, out var date))
         {
@@ -1909,31 +2123,27 @@ public partial class MainWindow : Window
         _ = RefreshWeatherAsync();
     }
 
-    private void ToggleClickThrough()
-    {
-        _settings.ClickThrough = !_settings.ClickThrough;
-        WindowHelper.SetClickThrough(this, _settings.ClickThrough);
-        JsonStore.SaveSettings(_settings);
-        _tray?.RefreshMenu();
-
-        if (_settings.ClickThrough)
-        {
-            _tray?.ShowBalloon("已开启鼠标穿透，窗口无法拖动。请从托盘菜单取消勾选「鼠标穿透」。");
-        }
-    }
-
     private void ExitApp()
     {
+        _isExiting = true;
         SaveWindowPosition();
         _hotkeyService?.Dispose();
         _tray?.Dispose();
         System.Windows.Application.Current.Shutdown();
     }
 
+    private void ExitButton_Click(object sender, RoutedEventArgs e) => ExitApp();
+
     private void SaveWindowPosition()
     {
+        if (_isAutoHiddenTop)
+        {
+            return;
+        }
+
         _settings.Left = Left;
         _settings.Top = Top;
+        _expandedTop = Top;
         if (ActualWidth > 0 && ActualHeight > 0)
         {
             _settings.WindowWidth = Width;
@@ -1955,20 +2165,14 @@ public partial class MainWindow : Window
 
     private void HandleWindowDrag(System.Windows.Input.MouseButtonEventArgs e)
     {
-        if (e.ClickCount >= 2 && IsInHeaderArea(e.OriginalSource as DependencyObject))
-        {
-            ToggleClickThrough();
-            e.Handled = true;
-            return;
-        }
-
-        if (_settings.ClickThrough)
+        if (_settings.WindowLocked)
         {
             return;
         }
 
         try
         {
+            ExpandFromTopAutoHide();
             DragMove();
         }
         catch

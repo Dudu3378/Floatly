@@ -3,11 +3,16 @@ namespace DeskLite.Models;
 public sealed class AppSettings
 {
     public List<string> ModuleOrder { get; set; } = [.. DeskModuleIds.DefaultOrder];
+    public List<string> HiddenModules { get; set; } = [];
     public bool Time24h { get; set; } = true;
     public bool ShowSeconds { get; set; } = true;
     public bool AlwaysOnTop { get; set; } = true;
     public bool AutoStart { get; set; }
     public bool ClickThrough { get; set; }
+    public bool WindowLocked { get; set; }
+    public bool EnableTopAutoHide { get; set; } = true;
+    public bool EnableHoverOpacity { get; set; } = true;
+    public double InactiveOpacity { get; set; } = 0.30;
     public bool ShowWeather { get; set; } = true;
     public bool ShowCityName { get; set; } = true;
     public bool AutoLocateCity { get; set; } = true;
@@ -16,7 +21,10 @@ public sealed class AppSettings
     public bool HuangLiCollapsed { get; set; }
     public bool ShowYearProgress { get; set; }
     public bool ShowCountdown { get; set; } = true;
+    public string CustomCountdownTitle { get; set; } = string.Empty;
+    public string CustomCountdownDate { get; set; } = string.Empty;
     public bool ShowDailyQuote { get; set; } = true;
+    public string CustomDailyQuote { get; set; } = string.Empty;
     public bool ShowSunriseSunset { get; set; } = true;
     public bool ShowTomorrowWeather { get; set; } = true;
     public bool ShowScratch { get; set; }

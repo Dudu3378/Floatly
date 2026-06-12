@@ -12,7 +12,12 @@ namespace DeskLite;
 
 public partial class SettingsWindow : Window
 {
-    private sealed record ModuleOrderItem(string Id, string DisplayName);
+    private sealed class ModuleOrderItem(string id, string displayName, bool isVisible)
+    {
+        public string Id { get; } = id;
+        public string DisplayName { get; } = displayName;
+        public bool IsVisible { get; set; } = isVisible;
+    }
 
     private const int MinOpacityPercent = 30;
     private const int MaxOpacityPercent = 100;
@@ -20,6 +25,7 @@ public partial class SettingsWindow : Window
     private readonly AppSettings _original;
     private readonly LocationService _locationService = new();
     private bool _syncOpacity;
+    private bool _syncInactiveOpacity;
     private bool _syncFontSize;
     private bool _syncSkinOverlay;
     private bool _isInitializing = true;
@@ -55,7 +61,8 @@ public partial class SettingsWindow : Window
     {
         ChkAlwaysOnTop.IsChecked = s.AlwaysOnTop;
         ChkAutoStart.IsChecked = s.AutoStart;
-        ChkClickThrough.IsChecked = s.ClickThrough;
+        ChkClickThrough.IsChecked = s.WindowLocked;
+        ChkTopAutoHide.IsChecked = s.EnableTopAutoHide;
         ChkGlobalHotkey.IsChecked = s.EnableGlobalHotkey;
         TxtHotkeyShowHide.Text = HotkeyComboHelper.Sanitize(s.HotkeyShowHide, HotkeyComboHelper.DefaultShowHide);
         TxtHotkeyQuickTodo.Text = HotkeyComboHelper.Sanitize(s.HotkeyQuickTodo, HotkeyComboHelper.DefaultQuickTodo);
@@ -80,6 +87,9 @@ public partial class SettingsWindow : Window
         var opacityPercent = (int)Math.Round(Math.Clamp(s.Opacity, MinOpacityPercent / 100.0, 1.0) * 100);
         opacityPercent = Math.Clamp(opacityPercent, MinOpacityPercent, MaxOpacityPercent);
         SetOpacityUi(opacityPercent);
+        ChkHoverOpacity.IsChecked = s.EnableHoverOpacity;
+        SetInactiveOpacityUi((int)Math.Round(Math.Clamp(s.InactiveOpacity, MinOpacityPercent / 100.0, 1.0) * 100));
+        UpdateHoverOpacityControls();
 
         var fontPt = FontScaleHelper.ResolvePt(s);
         SetFontSizeUi(fontPt);
@@ -109,15 +119,20 @@ public partial class SettingsWindow : Window
         ChkOffWorkCountdown.IsChecked = s.ShowOffWorkCountdown;
         ChkSalaryHelper.IsChecked = s.ShowSalaryHelper;
         ChkCountdown.IsChecked = s.ShowCountdown;
+        TxtCountdownTitle.Text = s.CustomCountdownTitle;
+        DpCountdownDate.SelectedDate = DateTime.TryParse(s.CustomCountdownDate, out var countdownDate)
+            ? countdownDate
+            : null;
         ChkPomodoro.IsChecked = s.ShowPomodoro;
         TxtPomodoroWork.Text = s.PomodoroWorkMinutes.ToString();
         TxtPomodoroBreak.Text = s.PomodoroBreakMinutes.ToString();
         TxtPomodoroLongBreak.Text = s.PomodoroLongBreakMinutes.ToString();
         TxtPomodoroSessions.Text = s.PomodoroSessionsBeforeLongBreak.ToString();
         ChkDailyQuote.IsChecked = s.ShowDailyQuote;
+        TxtDailyQuote.Text = s.CustomDailyQuote;
         ChkScratch.IsChecked = s.ShowScratch;
         ChkTodoReminder.IsChecked = s.ShowTodoReminder;
-        LoadModuleOrder(s.ModuleOrder);
+        LoadModuleOrder(s);
     }
 
     private void SetOpacityUi(int percent)
@@ -131,6 +146,20 @@ public partial class SettingsWindow : Window
         SliderOpacity.Value = percent;
         TxtOpacity.Text = percent.ToString();
         _syncOpacity = false;
+    }
+
+    private void SetInactiveOpacityUi(int percent)
+    {
+        if (SliderInactiveOpacity is null || TxtInactiveOpacity is null)
+        {
+            return;
+        }
+
+        percent = Math.Clamp(percent, MinOpacityPercent, MaxOpacityPercent);
+        _syncInactiveOpacity = true;
+        SliderInactiveOpacity.Value = percent;
+        TxtInactiveOpacity.Text = percent.ToString();
+        _syncInactiveOpacity = false;
     }
 
     private void LoadFontFamilies(string? selected)
@@ -282,6 +311,17 @@ public partial class SettingsWindow : Window
         }
 
         return (int)SliderOpacity.Value;
+    }
+
+    private int ReadInactiveOpacityPercent()
+    {
+        var text = TxtInactiveOpacity.Text.Trim().TrimEnd('%');
+        if (int.TryParse(text, out var value))
+        {
+            return Math.Clamp(value, MinOpacityPercent, MaxOpacityPercent);
+        }
+
+        return (int)SliderInactiveOpacity.Value;
     }
 
     private int ReadFontSizePt()
@@ -462,6 +502,53 @@ public partial class SettingsWindow : Window
         SetOpacityUi(ReadOpacityPercent());
     }
 
+    private void SliderInactiveOpacity_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (_isInitializing || _syncInactiveOpacity || TxtInactiveOpacity is null)
+        {
+            return;
+        }
+
+        SetInactiveOpacityUi((int)SliderInactiveOpacity.Value);
+    }
+
+    private void TxtInactiveOpacity_LostFocus(object sender, RoutedEventArgs e) => CommitInactiveOpacityText();
+
+    private void TxtInactiveOpacity_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (e.Key == System.Windows.Input.Key.Enter)
+        {
+            CommitInactiveOpacityText();
+        }
+    }
+
+    private void CommitInactiveOpacityText()
+    {
+        SetInactiveOpacityUi(ReadInactiveOpacityPercent());
+    }
+
+    private void ChkHoverOpacity_Changed(object sender, RoutedEventArgs e)
+    {
+        if (!_isInitializing)
+        {
+            UpdateHoverOpacityControls();
+        }
+    }
+
+    private void UpdateHoverOpacityControls()
+    {
+        var enabled = ChkHoverOpacity?.IsChecked == true;
+        if (SliderInactiveOpacity is not null)
+        {
+            SliderInactiveOpacity.IsEnabled = enabled;
+        }
+
+        if (TxtInactiveOpacity is not null)
+        {
+            TxtInactiveOpacity.IsEnabled = enabled;
+        }
+    }
+
     private void TxtFontSize_LostFocus(object sender, RoutedEventArgs e) => CommitFontSizeText();
 
     private void TxtFontSize_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
@@ -575,7 +662,9 @@ public partial class SettingsWindow : Window
 
         s.AlwaysOnTop = ChkAlwaysOnTop.IsChecked == true;
         s.AutoStart = ChkAutoStart.IsChecked == true;
-        s.ClickThrough = ChkClickThrough.IsChecked == true;
+        s.ClickThrough = false;
+        s.WindowLocked = ChkClickThrough.IsChecked == true;
+        s.EnableTopAutoHide = ChkTopAutoHide.IsChecked == true;
         s.EnableGlobalHotkey = ChkGlobalHotkey.IsChecked == true;
         s.HotkeyShowHide = HotkeyComboHelper.Sanitize(TxtHotkeyShowHide.Text, HotkeyComboHelper.DefaultShowHide);
         s.HotkeyQuickTodo = HotkeyComboHelper.Sanitize(TxtHotkeyQuickTodo.Text, HotkeyComboHelper.DefaultQuickTodo);
@@ -595,6 +684,8 @@ public partial class SettingsWindow : Window
 
         s.Theme = RbThemeLight.IsChecked == true ? "light" : "dark";
         s.Opacity = ReadOpacityPercent() / 100.0;
+        s.EnableHoverOpacity = ChkHoverOpacity.IsChecked == true;
+        s.InactiveOpacity = ReadInactiveOpacityPercent() / 100.0;
         var fontPt = ReadFontSizePt();
         s.FontSizePt = fontPt;
         s.FontScale = FontScaleHelper.PtToScale(fontPt);
@@ -656,28 +747,31 @@ public partial class SettingsWindow : Window
         s.ShowOffWorkCountdown = ChkOffWorkCountdown.IsChecked == true;
         s.ShowSalaryHelper = ChkSalaryHelper.IsChecked == true;
         s.ShowCountdown = ChkCountdown.IsChecked == true;
+        s.CustomCountdownTitle = TxtCountdownTitle.Text.Trim();
+        s.CustomCountdownDate = DpCountdownDate.SelectedDate?.ToString("yyyy-MM-dd") ?? string.Empty;
         s.ShowPomodoro = ChkPomodoro.IsChecked == true;
         s.PomodoroWorkMinutes = ReadPomodoroMinutes(TxtPomodoroWork.Text, 25, 1, 120);
         s.PomodoroBreakMinutes = ReadPomodoroMinutes(TxtPomodoroBreak.Text, 5, 1, 60);
         s.PomodoroLongBreakMinutes = ReadPomodoroMinutes(TxtPomodoroLongBreak.Text, 15, 1, 60);
         s.PomodoroSessionsBeforeLongBreak = ReadPomodoroMinutes(TxtPomodoroSessions.Text, 4, 2, 12);
         s.ShowDailyQuote = ChkDailyQuote.IsChecked == true;
+        s.CustomDailyQuote = TxtDailyQuote.Text.Trim();
         s.ShowScratch = ChkScratch.IsChecked == true;
         s.ShowTodoReminder = ChkTodoReminder.IsChecked == true;
         s.ModuleOrder = ReadModuleOrder();
+        ApplyModuleVisibility(s);
 
         return s;
     }
 
-    private void LoadModuleOrder(IEnumerable<string>? order)
+    private void LoadModuleOrder(AppSettings settings)
     {
         ModuleOrderList.Items.Clear();
-        foreach (var id in DeskModuleIds.Normalize(order))
+        foreach (var id in DeskModuleIds.Normalize(settings.ModuleOrder))
         {
-            ModuleOrderList.Items.Add(new ModuleOrderItem(id, DeskModuleIds.DisplayNames[id]));
+            ModuleOrderList.Items.Add(new ModuleOrderItem(id, DeskModuleIds.DisplayNames[id], IsModuleVisible(settings, id)));
         }
 
-        ModuleOrderList.DisplayMemberPath = nameof(ModuleOrderItem.DisplayName);
         if (ModuleOrderList.Items.Count > 0)
         {
             ModuleOrderList.SelectedIndex = 0;
@@ -692,6 +786,55 @@ public partial class SettingsWindow : Window
             .Cast<ModuleOrderItem>()
             .Select(item => item.Id)
             .ToList();
+    }
+
+    private List<string> ReadHiddenModules()
+    {
+        return ModuleOrderList.Items
+            .Cast<ModuleOrderItem>()
+            .Where(item => !item.IsVisible)
+            .Select(item => item.Id)
+            .ToList();
+    }
+
+    private static bool IsModuleVisible(AppSettings settings, string id)
+    {
+        if (DeskModuleIds.IsHidden(settings, id))
+        {
+            return false;
+        }
+
+        return id switch
+        {
+            DeskModuleIds.HuangLi => settings.ShowHuangLi,
+            DeskModuleIds.Weather => settings.ShowWeather,
+            DeskModuleIds.YearProgress => settings.ShowYearProgress,
+            DeskModuleIds.Countdown => settings.ShowCountdown,
+            DeskModuleIds.DailyQuote => settings.ShowDailyQuote,
+            DeskModuleIds.Scratch => settings.ShowScratch,
+            DeskModuleIds.Pomodoro => settings.ShowPomodoro,
+            _ => true
+        };
+    }
+
+    private void ApplyModuleVisibility(AppSettings settings)
+    {
+        settings.HiddenModules = DeskModuleIds.NormalizeHidden(ReadHiddenModules());
+        settings.ShowHuangLi = IsModuleChecked(DeskModuleIds.HuangLi);
+        settings.ShowWeather = IsModuleChecked(DeskModuleIds.Weather);
+        settings.ShowYearProgress = IsModuleChecked(DeskModuleIds.YearProgress);
+        settings.ShowCountdown = IsModuleChecked(DeskModuleIds.Countdown);
+        settings.ShowDailyQuote = IsModuleChecked(DeskModuleIds.DailyQuote);
+        settings.ShowScratch = IsModuleChecked(DeskModuleIds.Scratch);
+        settings.ShowPomodoro = IsModuleChecked(DeskModuleIds.Pomodoro);
+    }
+
+    private bool IsModuleChecked(string id)
+    {
+        return ModuleOrderList.Items
+            .Cast<ModuleOrderItem>()
+            .FirstOrDefault(item => item.Id == id)
+            ?.IsVisible == true;
     }
 
     private void UpdateModuleOrderButtons()

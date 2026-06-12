@@ -131,7 +131,8 @@
                         <TextBlock Style="{StaticResource SectionTitle}" Text="窗口" />
                         <CheckBox x:Name="ChkAlwaysOnTop" Content="窗口置顶" />
                         <CheckBox x:Name="ChkAutoStart" Content="开机自启" />
-                        <CheckBox x:Name="ChkClickThrough" Content="鼠标穿透（开启后无法拖动窗口）" />
+                        <CheckBox x:Name="ChkClickThrough" Content="锁定窗口位置（也可点主界面锁按钮）" />
+                        <CheckBox x:Name="ChkTopAutoHide" Content="贴到屏幕顶部时自动收起" />
                         <CheckBox x:Name="ChkGlobalHotkey" Content="全局快捷键" />
 
                         <TextBlock Style="{StaticResource SectionTitle}" Text="快捷键" Margin="0,8,0,10" />
@@ -245,6 +246,22 @@
                                      LostFocus="TxtOpacity_LostFocus" KeyDown="TxtOpacity_KeyDown" />
                         </Grid>
                         <TextBlock Style="{StaticResource HintText}" Text="30–100（数值越大越不透明）" Margin="0,0,0,14" />
+
+                        <CheckBox x:Name="ChkHoverOpacity" Content="鼠标悬停时自动不透明"
+                                  Checked="ChkHoverOpacity_Changed" Unchecked="ChkHoverOpacity_Changed" />
+                        <TextBlock Style="{StaticResource SectionTitle}" Text="鼠标离开时透明度" />
+                        <Grid Margin="0,0,0,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <Slider x:Name="SliderInactiveOpacity" Grid.Column="0" Style="{StaticResource SettingsSlider}"
+                                    Minimum="30" Maximum="100" IsSnapToTickEnabled="True" TickFrequency="1"
+                                    ValueChanged="SliderInactiveOpacity_ValueChanged" />
+                            <TextBox x:Name="TxtInactiveOpacity" Grid.Column="1" Style="{StaticResource SettingsNumericBox}"
+                                     LostFocus="TxtInactiveOpacity_LostFocus" KeyDown="TxtInactiveOpacity_KeyDown" />
+                        </Grid>
+                        <TextBlock Style="{StaticResource HintText}" Text="开启后，鼠标移入为 100%，移出使用这里的数值" Margin="0,0,0,14" />
 
                         <TextBlock Style="{StaticResource SectionTitle}" Text="字号" />
                         <Grid Margin="0,0,0,4">
@@ -381,7 +398,14 @@
                             </Grid.ColumnDefinitions>
                             <ListBox x:Name="ModuleOrderList" Grid.Column="0" Height="196"
                                      Style="{StaticResource ModuleOrderListBox}"
-                                     SelectionChanged="ModuleOrderList_SelectionChanged" />
+                                     SelectionChanged="ModuleOrderList_SelectionChanged">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <CheckBox IsChecked="{Binding IsVisible, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                  Content="{Binding DisplayName}" Margin="4,3" />
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
                             <StackPanel Grid.Column="1" Margin="8,0,0,0" VerticalAlignment="Center">
                                 <Button x:Name="BtnModuleUp" Content="上移" Style="{StaticResource ModuleOrderButton}"
                                         Click="BtnModuleUp_Click" />
@@ -395,8 +419,22 @@
                         <CheckBox x:Name="ChkOffWorkCountdown" Content="下班倒计时" />
                         <CheckBox x:Name="ChkSalaryHelper" Content="摸鱼小助手" />
                         <CheckBox x:Name="ChkCountdown" Content="倒数日" />
+                        <Grid Margin="20,-4,0,6">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="112" />
+                            </Grid.ColumnDefinitions>
+                            <TextBox x:Name="TxtCountdownTitle" Grid.Column="0" Height="32"
+                                     Style="{StaticResource SettingsTextBox}" ToolTip="倒数日名称" />
+                            <DatePicker x:Name="DpCountdownDate" Grid.Column="1" Height="32" Margin="8,0,0,0"
+                                        ToolTip="选择日期" />
+                        </Grid>
+                        <TextBlock Style="{StaticResource HintText}" Text="填写名称和日期后，主界面优先显示这个倒数日" Margin="20,-2,0,10" />
                         <CheckBox x:Name="ChkPomodoro" Content="番茄钟" />
                         <CheckBox x:Name="ChkDailyQuote" Content="每日一句" />
+                        <TextBox x:Name="TxtDailyQuote" Height="32" Margin="20,-4,0,10"
+                                 Style="{StaticResource SettingsTextBox}" />
+                        <TextBlock Style="{StaticResource HintText}" Text="留空时自动显示内置每日一句" Margin="20,-6,0,10" />
                         <CheckBox x:Name="ChkScratch" Content="速记便签" />
                         <CheckBox x:Name="ChkTodoReminder" Content="待办到时提醒" />
 

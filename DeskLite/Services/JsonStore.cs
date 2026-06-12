@@ -57,8 +57,15 @@ public static class JsonStore
         {
             var json = File.ReadAllText(SettingsPath);
             var settings = JsonSerializer.Deserialize<AppSettings>(json, JsonOptions) ?? new AppSettings();
+            if (settings.ClickThrough)
+            {
+                settings.WindowLocked = true;
+                settings.ClickThrough = false;
+            }
+
             FontScaleHelper.NormalizeFontSettings(settings);
             settings.Opacity = Math.Clamp(settings.Opacity, 0.30, 1.0);
+            settings.InactiveOpacity = Math.Clamp(settings.InactiveOpacity, 0.30, 1.0);
             settings.FontFamily = FontFamilyHelper.ResolveName(settings.FontFamily);
             settings.SkinMode = SkinService.NormalizeMode(settings.SkinMode);
             settings.SkinOverlayOpacity = SkinService.ClampOverlayOpacity(settings.SkinOverlayOpacity);

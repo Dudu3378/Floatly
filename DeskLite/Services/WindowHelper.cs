@@ -47,7 +47,7 @@ public static class WindowHelper
         }
     }
 
-    public static void EnableBorderlessResize(Window window, int grip = 8)
+    public static void EnableBorderlessResize(Window window, int grip = 8, Func<bool>? canResize = null)
     {
         void AttachHook()
         {
@@ -67,6 +67,11 @@ public static class WindowHelper
             source.AddHook((IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled) =>
             {
                 if (msg != WmNchitTest)
+                {
+                    return IntPtr.Zero;
+                }
+
+                if (canResize is not null && !canResize())
                 {
                     return IntPtr.Zero;
                 }
